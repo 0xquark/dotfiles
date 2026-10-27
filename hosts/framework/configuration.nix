@@ -70,8 +70,9 @@
     extraPackages = [ ];        # Home Manager installs tools on sway
   };
   security.polkit.enable = true;
-  security.pam.services.swaylock = { };
-
+  # swaylock: password only (with fingerprint on, it waits for a finger after you press Enter)
+  security.pam.services.swaylock.fprintAuth = false;
+  
   # Enable CUPS to print documents.
   services.printing.enable = true;
 

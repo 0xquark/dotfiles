@@ -14,15 +14,22 @@
       url = "github:nix-community/home-manager/release-26.05";
       inputs.nixpkgs.follows = "nixpkgs";   # one nixpkgs for everything
     };
+    # Theme Engine (Stylix branch version must match the nixos release (26.05))
+    stylix = {
+      url = "github:nix-community/stylix/release-26.05";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
-  outputs = { nixpkgs, nixos-hardware, home-manager, ... }@inputs: {
+  outputs = { nixpkgs, nixos-hardware, home-manager, stylix, ... }@inputs: {
     # Named after your hostname, so `nixos-rebuild --flake ~/nixos` finds it
     nixosConfigurations.nixos = nixpkgs.lib.nixosSystem {
       specialArgs = { inherit inputs; };     # lets any module use inputs.*
       modules = [
         ./hosts/framework/configuration.nix
+        ./hosts/framework/theme.nix
         nixos-hardware.nixosModules.framework-intel-core-ultra-series3
+        stylix.nixosModules.stylix
         home-manager.nixosModules.home-manager
         {
           home-manager.useGlobalPkgs = true;

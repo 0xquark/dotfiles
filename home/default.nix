@@ -1,5 +1,5 @@
 { ... }: {
-  imports = [ ./sway.nix ./keys.nix ./apps.nix ./shell.nix ];
+  imports = [ ./sway.nix ./keys.nix ./apps.nix ./shell.nix ./bar.nix ];
 
   home.username = "drquark";
   home.homeDirectory = "/home/drquark";
