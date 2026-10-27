@@ -20,7 +20,7 @@
   # The community Framework kernel driver currently fails to build on kernel 7.2; re-enable later
   hardware.framework.enableKmod = false;
   
-  networking.hostName = "nixos"; # Define your hostname.
+  networking.hostName = "delorean"; # Define your hostname.
   # networking.wireless.enable = true;  # Enables wireless support via wpa_supplicant.
 
   # Configure network proxy if necessary

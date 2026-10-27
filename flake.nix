@@ -1,5 +1,5 @@
 {
-  description = "drquark's Framework 13 Pro";
+  description = "drquark's delorean";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
@@ -28,7 +28,7 @@
 
   outputs = { nixpkgs, nixos-hardware, home-manager, stylix, ... }@inputs: {
     # Named after your hostname, so `nixos-rebuild --flake ~/nixos` finds it
-    nixosConfigurations.nixos = nixpkgs.lib.nixosSystem {
+    nixosConfigurations.delorean = nixpkgs.lib.nixosSystem {
       specialArgs = { inherit inputs; };     # lets any module use inputs.*
       modules = [
         ./hosts/framework/configuration.nix
