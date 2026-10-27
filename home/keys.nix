@@ -1,4 +1,4 @@
-{ lib, ... }:
+{ lib, pkgs, ... }:
 let
   mod = "Mod4";   # the Framework key (Super), 
   alt = "Mod1";   # Alt (Option on a Mac)
@@ -12,6 +12,9 @@ in
       autoStart = true;
     };
   };
+
+  # Media keys control the player you used most recently
+  services.playerctld.enable = true;
 
   # ── Sway's keys ─────────────────────────────────────
   wayland.windowManager.sway.config = {
@@ -40,6 +43,12 @@ in
       "XF86AudioMute"         = "exec wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle";
       "XF86MonBrightnessUp"   = "exec brightnessctl set 5%+";
       "XF86MonBrightnessDown" = "exec brightnessctl set 5%-";
+
+      # Media: play/pause, next, previous (F4–F6)
+      "XF86AudioPlay"  = "exec ${pkgs.playerctl}/bin/playerctl play-pause";
+      "XF86AudioPause" = "exec ${pkgs.playerctl}/bin/playerctl play-pause";
+      "XF86AudioNext"  = "exec ${pkgs.playerctl}/bin/playerctl next";
+      "XF86AudioPrev"  = "exec ${pkgs.playerctl}/bin/playerctl previous";
     };
   };
 }
