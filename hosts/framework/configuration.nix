@@ -185,6 +185,13 @@ services.syncthing = {
   overrideFolders = false;
 };
 
+# Token2 / Keyroost: security-key management
+programs.appimage = {
+  enable = true;
+  binfmt = true;           # lets .AppImage files run directly, like normal programs
+};
+services.pcscd.enable = true;   # smart-card channel: PIV, OpenPGP, on-device OTP
+
   # Open ports in the firewall.
   # networking.firewall.allowedTCPPorts = [ ... ];
   # networking.firewall.allowedUDPPorts = [ ... ];

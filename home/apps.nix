@@ -1,7 +1,15 @@
 { inputs, pkgs, ... }:
 {
   imports = [ inputs.zen-browser.homeModules.beta inputs.spicetify-nix.homeManagerModules.spicetify ];
-
+  
+ # Keyroost (Token2 key manager): shows up in Vicinae and app menus
+  xdg.desktopEntries.keyroost = {
+    name = "Keyroost";
+    comment = "Manage Token2 and other security keys";
+    exec = "/home/drquark/Applications/keyroost.AppImage";
+    icon = "security-high";
+    categories = [ "Utility" "Security" ];
+  };
   # ── Browser ──────────────────────────
   programs.zen-browser.enable = true;
 
