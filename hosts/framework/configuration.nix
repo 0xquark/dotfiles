@@ -173,6 +173,18 @@ environment.etc."libinput/local-overrides.quirks".text = ''
   MatchName=keyd virtual keyboard
   AttrKeyboardIntegration=internal
 '';
+
+# Syncthing: syncs the Obsidian vault with the Mac
+services.syncthing = {
+  enable = true;
+  user = "drquark";
+  dataDir = "/home/drquark";
+  configDir = "/home/drquark/.config/syncthing";
+  openDefaultPorts = true;    # lets the Mac connect directly over your Wi-Fi
+  overrideDevices = false;    # keep devices and folders you add in the web page
+  overrideFolders = false;
+};
+
   # Open ports in the firewall.
   # networking.firewall.allowedTCPPorts = [ ... ];
   # networking.firewall.allowedUDPPorts = [ ... ];
