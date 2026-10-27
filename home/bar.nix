@@ -50,6 +50,39 @@
       tray.spacing = 8;
     };
 
+    settings.stats = {
+      layer = "top";
+      position = "bottom";
+      height = 26;
+      spacing = 4;
+
+      modules-left  = [ "cpu" "memory" "temperature" "disk" ];
+      modules-right = [ "network#speed" ];
+
+      cpu = {
+        format = "CPU {usage}%";
+        interval = 2;
+        on-click = "ghostty -e btop";
+      };
+      memory = {
+        format = "RAM {percentage}%";
+        interval = 5;
+        on-click = "ghostty -e btop";
+      };
+      temperature = {
+        format = "TMP {temperatureC}°C";
+        critical-threshold = 85;
+      };
+      disk = {
+        format = "DSK {percentage_used}%";
+        path = "/";
+      };
+      "network#speed" = {
+        format = "DN {bandwidthDownBytes}  UP {bandwidthUpBytes}";
+        interval = 2;
+      };
+    };
+
     # Stylix writes the colours; this only adds the lettering on top
     style = lib.mkAfter ''
       * {
@@ -72,4 +105,7 @@
 
   # Opened by clicking the bar's sound and Bluetooth labels
   home.packages = with pkgs; [ pavucontrol bluetui ];
+
+  # btop: opened by clicking CPU or RAM in the bottom bar (coloured by Stylix)
+  programs.btop.enable = true;
 }

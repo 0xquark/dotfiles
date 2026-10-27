@@ -1,10 +1,13 @@
 { inputs, pkgs, ... }:
 {
-  imports = [ inputs.zen-browser.homeModules.beta ];
+  imports = [ inputs.zen-browser.homeModules.beta inputs.spicetify-nix.homeManagerModules.spicetify ];
 
   # ── Browser ──────────────────────────
   programs.zen-browser.enable = true;
 
+  # Spotify, coloured by Stylix
+  programs.spicetify.enable = true;
+  
   # ── Terminal ─────────────────────────
   programs.ghostty = {
     enable = true;

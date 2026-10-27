@@ -72,7 +72,7 @@
   security.polkit.enable = true;
   # swaylock: password only (with fingerprint on, it waits for a finger after you press Enter)
   security.pam.services.swaylock.fprintAuth = false;
-  
+
   # Enable CUPS to print documents.
   services.printing.enable = true;
 
@@ -121,7 +121,6 @@
     vim
     hyfetch
     firefox-devedition
-    btop
     code-cursor
    ];
 
