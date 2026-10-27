@@ -147,7 +147,32 @@
  };
   # Enable the OpenSSH daemon.
   # services.openssh.enable = true;
+# Mac-style copy and paste: Alt (where Cmd sits on a Mac) + C / V, in every app
+services.keyd = {
+  enable = true;
+  keyboards.default = {
+    ids = [ "*" ];
+    settings = {
+      alt = {
+        c = "C-insert";   # copy   = Ctrl+Insert (works even in terminals)
+        v = "S-insert";   # paste  = Shift+Insert
+	a = "C-a"; # select all
+      };
+      # Leave Alt+Shift+V alone: it's Vicinae's clipboard history
+      "alt+shift" = {
+        v = "A-S-v";
+      };
+    };
+  };
+};
 
+# keyd appears as a new keyboard; this keeps "ignore touchpad while typing" working
+environment.etc."libinput/local-overrides.quirks".text = ''
+  [Serial Keyboards]
+  MatchUdevType=keyboard
+  MatchName=keyd virtual keyboard
+  AttrKeyboardIntegration=internal
+'';
   # Open ports in the firewall.
   # networking.firewall.allowedTCPPorts = [ ... ];
   # networking.firewall.allowedUDPPorts = [ ... ];

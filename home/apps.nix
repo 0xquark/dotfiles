@@ -16,6 +16,11 @@
       window-padding-y = 12;
       cursor-style = "bar";
       confirm-close-surface = false;   # close without asking
+      keybind = [
+        "ctrl+insert=copy_to_clipboard"
+        "shift+insert=paste_from_clipboard"
+        "ctrl+a=select_all"            # Alt+A (via keyd) selects everything
+      ];
     };
   };
 
