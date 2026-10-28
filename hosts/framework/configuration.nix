@@ -197,7 +197,7 @@ services.pcscd.enable = true;   # smart-card channel: PIV, OpenPGP, on-device OT
   # networking.firewall.allowedUDPPorts = [ ... ];
   # Or disable the firewall altogether.
   # networking.firewall.enable = false;
-
+  networking.networkmanager.wifi.macAddress = "permanent";
   # Copy the NixOS configuration file and link it from the resulting system
   # (/run/current-system/configuration.nix). This is useful in case you
   # accidentally delete configuration.nix.
