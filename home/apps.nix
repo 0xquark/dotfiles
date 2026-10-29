@@ -44,5 +44,6 @@
     discord
     zoom-us
     obsidian
+    pkgs.element-desktop
   ];
 }
