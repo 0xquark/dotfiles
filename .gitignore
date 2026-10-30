@@ -1,0 +1,21 @@
+# ── Nix build outputs ──────────────────────────────
+result
+result-*
+
+# ── Editor and OS leftovers ─────────────────────────
+.direnv/
+*.swp
+*~
+.DS_Store
+
+# ── Safety net ─────
+# Private SSH keys
+id_*
+*.pem
+*.key
+.env
+.env.*
+
+# Anything with name *.local or put in secrets/ stays private
+*.local
+secrets/
