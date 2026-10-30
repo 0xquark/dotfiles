@@ -2,7 +2,7 @@
 # your system. Help is available in the configuration.nix(5) man page, on
 # https://search.nixos.org/options and in the NixOS manual (`nixos-help`).
 
-{ config, pkgs, ... }:
+{ config, pkgs, inputs, ... }:
 
 {
   imports =
@@ -191,6 +191,9 @@ programs.appimage = {
   binfmt = true;           # lets .AppImage files run directly, like normal programs
 };
 services.pcscd.enable = true;   # smart-card channel: PIV, OpenPGP, on-device OTP
+
+# Newest Claude Code instead of the one in stable nixpkgs
+nixpkgs.overlays = [ inputs.claude-code.overlays.default ];
 
   # Open ports in the firewall.
   # networking.firewall.allowedTCPPorts = [ ... ];

@@ -31,6 +31,9 @@
       ];
     };
   };
+  
+  # Claude
+  programs.claude-code.enable = true;
 
   # ── Editor ───────────────────────────
   programs.neovim = {
@@ -45,5 +48,6 @@
     zoom-us
     obsidian
     pkgs.element-desktop
+    pkgs.calcurse
   ];
 }
