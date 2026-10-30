@@ -1,4 +1,5 @@
 { ... }:
+
 {
   # Keeps unlocked keys in memory for the session
   services.ssh-agent.enable = true;
@@ -38,5 +39,10 @@
         identityFile = "~/.ssh/id_ed25519_cern";
       };
     };
+  };
+  
+  # Short commands for the terminal
+  home.shellAliases = {
+    nap = "systemctl suspend";
   };
 }

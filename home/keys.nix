@@ -36,7 +36,7 @@ in
       "Print"            = "exec grim - | wl-copy";
       "${mod}+n"         = "exec makoctl dismiss --all";
       "${mod}+Tab"       = "workspace back_and_forth";
-
+      "${mod}+Shift+Escape" = "exec systemctl suspend";   # sleep
       # Laptop keys: volume and brightness
       "XF86AudioRaiseVolume"  = "exec wpctl set-volume -l 1.0 @DEFAULT_AUDIO_SINK@ 5%+";
       "XF86AudioLowerVolume"  = "exec wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-";
