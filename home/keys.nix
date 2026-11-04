@@ -70,6 +70,12 @@ in
       
       # Quick note using (hyper(caps) + n))      
       "${hyper}+n" = "exec ${quicknote}";
+      
+      # Monitors: send the window, or the whole workspace, to the other screen
+      "${mod}+${alt}+Left"        = "move container to output left";
+      "${mod}+${alt}+Right"       = "move container to output right";
+      "${mod}+${alt}+Shift+Left"  = "move workspace to output left";
+      "${mod}+${alt}+Shift+Right" = "move workspace to output right";
 
       # Mac-style app switching
       "${alt}+Tab"       = "exec swayr switch-to-urgent-or-lru-window";   # back to the last window

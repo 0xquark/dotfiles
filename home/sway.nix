@@ -4,6 +4,23 @@
     enable = true;
     package = null;   # use the system Sway, the one SDDM lists
 
+    extraConfig = ''
+      # Lid closed: switch the laptop screen off; Sway moves its workspaces to the monitor
+      bindswitch --reload --locked lid:on  output eDP-1 disable
+      # Lid opened: switch it back on
+      bindswitch --reload --locked lid:off output eDP-1 enable
+      # 1–6 live on the monitor; 7–9 live on the laptop, but join the monitor while the lid is shut
+      workspace 1 output DP-1 eDP-1
+      workspace 2 output DP-1 eDP-1
+      workspace 3 output DP-1 eDP-1
+      workspace 4 output DP-1 eDP-1
+      workspace 5 output DP-1 eDP-1
+      workspace 6 output DP-1 eDP-1
+      workspace 7 output eDP-1 DP-1
+      workspace 8 output eDP-1 DP-1
+      workspace 9 output eDP-1 DP-1
+    '';
+
     config = {
       # ── Input ─────────────────────────────────────────
       input = {
@@ -12,7 +29,9 @@
       };
 
       # ── Display (find the name with: swaymsg -t get_outputs) ──
-      output."eDP-1".scale = "2";   # keep whatever value you settled on
+      # Laptop on the left, monitor to its right (Sway uses these positions for dragging and moving)
+      output."eDP-1"  = { scale = "2"; position = "0,0"; };       #laptop
+      output."DP-1"   = { scale = "1"; position = "1440,0"; };    #monitor
 
       # ── Look: gaps, thin borders, no title bars ─────────
       gaps = { inner = 10; outer = 4; };
