@@ -30,11 +30,15 @@ in
   # Media keys control the player you used most recently
   services.playerctld.enable = true;
 
+  # swayr: Mac-style window switching (remembers which windows you used last)
+  home.packages = [ pkgs.swayr ];
+
   # ── Sway's keys ─────────────────────────────────────
   wayland.windowManager.sway.config = {
     modifier = mod;
     terminal = "ghostty";
     menu = "vicinae toggle";
+    startup = [ { command = "swayrd"; } ];   # tracks the order you used windows in
 
     # mkOptionDefault ADDS these to Sway's built-in shortcuts instead of replacing them
     keybindings = lib.mkOptionDefault {
@@ -63,8 +67,13 @@ in
       "XF86AudioPause" = "exec ${pkgs.playerctl}/bin/playerctl play-pause";
       "XF86AudioNext"  = "exec ${pkgs.playerctl}/bin/playerctl next";
       "XF86AudioPrev"  = "exec ${pkgs.playerctl}/bin/playerctl previous";
-            
+      
+      # Quick note using (hyper(caps) + n))      
       "${hyper}+n" = "exec ${quicknote}";
+
+      # Mac-style app switching
+      "${alt}+Tab"       = "exec swayr switch-to-urgent-or-lru-window";   # back to the last window
+      "${alt}+Shift+Tab" = "exec swayr next-window all-workspaces";       # step through every window
     };
   };
 }
