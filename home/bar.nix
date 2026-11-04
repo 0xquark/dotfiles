@@ -18,7 +18,7 @@
       clock = {
         format = "{:%a %d %b  %H:%M}";
         tooltip-format = "<tt>{calendar}</tt>";
-      };
+      };    
       battery = {
         states = { warning = 25; critical = 10; };
         format = "PWR {capacity}%";
@@ -58,7 +58,19 @@
 
       modules-left  = [ "cpu" "memory" "temperature" "disk" ];
       modules-right = [ "network#speed" ];
-
+      modules-center = [ "mpris" ];
+      
+      # Now playing: Spotify, or whichever player was used last
+      mpris = {
+        format        = "NOW {dynamic}";                 # e.g. NOW Meltdown - Clint Mansell
+        format-paused = "PAUSED {dynamic}";
+        dynamic-order = [ "title" "artist" ];            # what to show, in this order
+        dynamic-len   = 40;                              # shorten long titles
+        tooltip-format = "{player}: {title} - {artist} ({album})";
+        on-click       = "${pkgs.playerctl}/bin/playerctl play-pause";
+        on-click-right = "${pkgs.playerctl}/bin/playerctl next";
+        on-scroll-up   = "${pkgs.playerctl}/bin/playerctl previous";
+      };  
       cpu = {
         format = "CPU {usage}%";
         interval = 2;
