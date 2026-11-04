@@ -25,7 +25,8 @@
       # ── Input ─────────────────────────────────────────
       input = {
         "type:touchpad" = { tap = "enabled"; natural_scroll = "enabled"; dwt = "enabled"; };
-        "type:keyboard" = { xkb_layout = "us"; xkb_variant = "mac"; repeat_delay = "250"; repeat_rate = "40"; };
+        "type:pointer"  = { natural_scroll = "enabled"; };   # mice: scroll inverted
+	"type:keyboard" = { xkb_layout = "us"; xkb_variant = "mac"; repeat_delay = "250"; repeat_rate = "40"; };
       };
 
       # ── Display (find the name with: swaymsg -t get_outputs) ──
