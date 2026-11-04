@@ -2,6 +2,20 @@
 let
   mod = "Mod4";   # the Framework key (Super), 
   alt = "Mod1";   # Alt (Option on a Mac)
+  hyper = "Mod4+Mod1+Control+Shift";   # what keyd sends while Caps is held
+
+  noteFile = "$HOME//drquark/oasis/vault/2026/QuickNotes";   # syncs via Syncthing
+  noteId   = "com.drquark.quicknote";                      # the window's name for Sway
+
+  # Show / hide the note; start it if it isn't running yet
+  quicknote = pkgs.writeShellScript "quicknote" ''
+    if swaymsg -t get_tree | grep -q '"app_id": "${noteId}"'; then
+      swaymsg '[app_id="${noteId}"] scratchpad show'
+    else
+      mkdir -p "$(dirname "${noteFile}")"
+      ${pkgs.ghostty}/bin/ghostty --class=${noteId} -e ${pkgs.micro}/bin/micro "${noteFile}" &
+    fi
+  '';
 in
 {
   # ── Launcher: Vicinae ────────
@@ -49,6 +63,8 @@ in
       "XF86AudioPause" = "exec ${pkgs.playerctl}/bin/playerctl play-pause";
       "XF86AudioNext"  = "exec ${pkgs.playerctl}/bin/playerctl next";
       "XF86AudioPrev"  = "exec ${pkgs.playerctl}/bin/playerctl previous";
+            
+      "${hyper}+n" = "exec ${quicknote}";
     };
   };
 }

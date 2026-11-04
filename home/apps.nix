@@ -31,6 +31,12 @@
       ];
     };
   };
+
+  # micro: a simple terminal editor
+  programs.micro = {
+    enable = true;
+    settings.autosave = 5;   # save automatically every 5 seconds
+  };
   
   # Claude
   programs.claude-code.enable = true;

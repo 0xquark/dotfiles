@@ -16,7 +16,17 @@
 
       # ── Look: gaps, thin borders, no title bars ─────────
       gaps = { inner = 10; outer = 4; };
-      window = { titlebar = false; border = 2; };
+      window = {
+        titlebar = false;
+        border = 2;
+        commands = [
+          # Quick note: floating, centred, hidden in the scratchpad when not shown
+          {
+            criteria = { app_id = "com.drquark.quicknote"; };
+            command = "floating enable, resize set 720 520, move position center, move scratchpad, scratchpad show";
+          }
+        ];
+      };
       floating = { titlebar = false; border = 2; };
 
       # ── Bar: Waybar (bar.nix) ───────
