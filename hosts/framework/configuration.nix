@@ -4,6 +4,14 @@
 
 { config, pkgs, inputs, ... }:
 
+let
+  # Unstable nixpkgs, used only where named below (allowUnfree for Cursor)
+  unstable = import inputs.nixpkgs-unstable {
+    system = pkgs.stdenv.hostPlatform.system;
+    config.allowUnfree = true;
+  };
+in
+
 {
   imports =
     [ # Include the results of the hardware scan.
@@ -121,7 +129,7 @@
     vim
     hyfetch
     firefox-devedition
-    code-cursor
+    unstable.code-cursor
    ];
 
   # Electron and Chromium apps (Cursor, Discord, Helium) run natively on Wayland: sharp, not blurry

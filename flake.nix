@@ -4,6 +4,8 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
     nixos-hardware.url = "github:NixOS/nixos-hardware/master";
+    nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixos-unstable";
+    
     # Zen browser (not in nixpkgs)
     zen-browser = {
       url = "github:0xc000022070/zen-browser-flake";
