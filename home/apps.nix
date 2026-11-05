@@ -12,6 +12,7 @@
   };
   # ── Browser ──────────────────────────
   programs.zen-browser.enable = true;
+  stylix.targets.zen-browser.enable = false;   # I theme Zen myself
 
   # Spotify, coloured by Stylix
   programs.spicetify.enable = true;

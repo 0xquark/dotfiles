@@ -8,39 +8,40 @@
     enable = true;
     enableDefaultConfig = false;
 
-    matchBlocks = {
+    # Option names are the same as in ~/.ssh/config (see `man ssh_config`)
+    settings = {
       # Applies to every host
       "*" = {
-        addKeysToAgent = "yes";
-        identitiesOnly = true;   # offer ONLY the key listed for that host
+        AddKeysToAgent = "yes";
+        IdentitiesOnly = true;   # offer ONLY the key listed for that host
       };
 
       # ── Personal ───────────────────────────────
       "github.com" = {
-        user = "git";
-        identityFile = "~/.ssh/id_ed25519_personal";
+        User = "git";
+        IdentityFile = "~/.ssh/id_ed25519_personal";
       };
 
       # ── KDE ────────────────────────────────────
       "invent.kde.org" = {
-        user = "git";
-        identityFile = "~/.ssh/id_ed25519_kde";
+        User = "git";
+        IdentityFile = "~/.ssh/id_ed25519_kde";
       };
 
       # ── CERN ───────────────────────────────────
       "gitlab.cern.ch" = {
-        user = "git";
-        port = 7999;             # CERN GitLab uses SSH on port 7999
-        identityFile = "~/.ssh/id_ed25519_cern";
+        User = "git";
+        Port = 7999;             # CERN GitLab uses SSH on port 7999
+        IdentityFile = "~/.ssh/id_ed25519_cern";
       };
       "lxplus" = {               # ssh lxplus
-        hostname = "lxplus.cern.ch";
-        user = "karanjot";
-        identityFile = "~/.ssh/id_ed25519_cern";
+        HostName = "lxplus.cern.ch";
+        User = "karanjot";
+        IdentityFile = "~/.ssh/id_ed25519_cern";
       };
     };
   };
-  
+
   # Short commands for the terminal
   home.shellAliases = {
     nap = "systemctl suspend";
