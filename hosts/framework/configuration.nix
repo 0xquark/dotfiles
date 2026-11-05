@@ -78,8 +78,13 @@ in
     extraPackages = [ ];        # Home Manager installs tools on sway
   };
   security.polkit.enable = true;
-  # swaylock: password only (with fingerprint on, it waits for a finger after you press Enter)
-  security.pam.services.swaylock.fprintAuth = false;
+  # swaylock: type password + Enter, or press Enter on an empty field then touch the sensor.
+  # fprintd normally runs before the password check, so a typed password would wait for a
+  # finger first; moving it after pam_unix (11700) means it only kicks in when the password fails.
+  security.pam.services.swaylock = {
+    fprintAuth = true;
+    rules.auth.fprintd.order = config.security.pam.services.swaylock.rules.auth.unix.order + 50;
+  };
 
   # Enable CUPS to print documents.
   services.printing.enable = true;
