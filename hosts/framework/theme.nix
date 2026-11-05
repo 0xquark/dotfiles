@@ -45,21 +45,18 @@
 
     # ── Slightly see-through terminal ─────────────────
     opacity.terminal = 0.92;
-
-    # ── Keep Plasma's look untouched ──────────────────
-    targets.qt.enable = false;
   };
 
-  # The same idea for your user's apps (Home Manager side)
+  # User side (Home Manager). Qt/KDE apps like Dolphin are themed by Stylix too now that Plasma is gone.
   home-manager.sharedModules = [
     {
-      stylix.targets.kde.enable = false;   # Plasma keeps its own theme
-      stylix.targets.qt.enable = false;    # Qt apps keep Breeze
-
       gtk.enable = true;
-      gtk.iconTheme = {
-        name = "Papirus-Dark";
+      # Icons for both GTK and Qt apps
+      stylix.icons = {
+        enable = true;
         package = pkgs.papirus-icon-theme.override { color = "orange"; };
+        dark = "Papirus-Dark";
+        light = "Papirus-Light";
       };
     }
   ];

@@ -70,5 +70,14 @@
     gopls        # Go language server, for Cursor and Neovim
     python3
     uv           # fast Python package and venv manager (pip replacement)
+
+    # KDE apps kept after dropping Plasma: files, images, PDFs, archives
+    kdePackages.dolphin
+    kdePackages.kio-extras                 # Dolphin: phones (MTP), network places, thumbnails
+    kdePackages.kdegraphics-thumbnailers   # PDF and image previews
+    kdePackages.ffmpegthumbs               # video previews
+    kdePackages.gwenview
+    kdePackages.okular
+    kdePackages.ark
   ];
 }

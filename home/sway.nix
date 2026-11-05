@@ -60,6 +60,8 @@
         { command = "${pkgs.kdePackages.polkit-kde-agent-1}/libexec/polkit-kde-authentication-agent-1"; }
         # Notifications
         { command = "mako"; }
+        # KDE Connect: tray icon in Waybar; also starts the background service
+        { command = "kdeconnect-indicator"; }
         # Lock after 5 min, screen off after 10, lock before sleep
         { command = "swayidle -w timeout 300 'swaylock -f' timeout 600 'swaymsg \"output * power off\"' resume 'swaymsg \"output * power on\"' before-sleep 'swaylock -f'"; }
       ];

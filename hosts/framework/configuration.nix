@@ -60,10 +60,8 @@ in
   # You can disable this if you're only using the Wayland session.
   services.xserver.enable = true;
 
-  # ------- Desktop 1 : KDE Plasma ------
-  # Enable the KDE Plasma Desktop Environment.
+  # Login screen. Autologin (below) skips it; you only see it after logging out of Sway
   services.displayManager.sddm.enable = true;
-  services.desktopManager.plasma6.enable = true;
 
   # Configure keymap in X11
   services.xserver.xkb = {
@@ -71,7 +69,7 @@ in
     variant = "mac";
   };
 
-  # -------- Desktop 2: Sway -------
+  # -------- Desktop: Sway -------
   programs.sway = {
     enable = true;              # adds "Sway" to SDDM's session menu
     wrapperFeatures.gtk = true;
@@ -80,7 +78,6 @@ in
   security.polkit.enable = true;
   # Boot straight into Sway, which locks itself right away (sway.nix), so the first
   # screen is swaylock with fingerprint instead of SDDM's password-only login.
-  # Plasma is still reachable: log out of Sway and pick it in SDDM.
   services.displayManager.defaultSession = "sway";
   services.displayManager.autoLogin = {
     enable = true;
@@ -92,6 +89,19 @@ in
   security.pam.services.swaylock = {
     fprintAuth = true;
     rules.auth.fprintd.order = config.security.pam.services.swaylock.rules.auth.unix.order + 50;
+  };
+  # These used to come with Plasma. Waybar's power-profile button needs the first;
+  # upower reports battery state to apps.
+  services.power-profiles-daemon.enable = true;
+  services.upower.enable = true;
+  # Dolphin builds its "Open with" list from this menu file; outside Plasma there is none
+  environment.etc."xdg/menus/applications.menu".source =
+    "${pkgs.gnome-menus}/etc/xdg/menus/gnome-applications.menu";
+
+  # KDE Connect: phone notifications, file sharing, clipboard (opens its firewall ports)
+  programs.kdeconnect = {
+    enable = true;
+    package = pkgs.kdePackages.kdeconnect-kde;
   };
 
   # Enable CUPS to print documents.
@@ -149,6 +159,17 @@ in
     hyfetch
     firefox-devedition
     unstable.code-cursor
+
+    # KDE Wallet, kept from Plasma. Apps look for a password store under the name
+    # org.freedesktop.secrets; this lets D-Bus start ksecretd when they first ask.
+    # Autologin means no login password to unlock it with, so it asks once per boot.
+    kdePackages.kwallet
+    kdePackages.kwalletmanager
+    (writeTextDir "share/dbus-1/services/org.freedesktop.secrets.service" ''
+      [D-BUS Service]
+      Name=org.freedesktop.secrets
+      Exec=${kdePackages.kwallet}/bin/ksecretd
+    '')
    ];
 
   # Electron and Chromium apps (Cursor, Discord, Helium) run natively on Wayland: sharp, not blurry
