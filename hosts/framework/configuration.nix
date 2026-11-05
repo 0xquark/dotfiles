@@ -114,9 +114,15 @@ in
   # Install firefox.
   programs.firefox.enable = true;
 
+ # Lets prebuilt Linux binaries run: pip/uv wheels (numpy, torch…), tools Go downloads, editor extensions
+ programs.nix-ld.enable = true;
+
   # Allow unfree packages
   nixpkgs.config.allowUnfree = true;
-
+  
+  # Flatpak, for the odd app that isn't safely packaged in nixpkgs (e.g. Stremio)
+  services.flatpak.enable = true;
+  
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
 
   # List packages installed in system profile.

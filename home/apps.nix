@@ -41,6 +41,16 @@
   # Claude
   programs.claude-code.enable = true;
 
+  # GitHub CLI; also git's HTTPS login for github.com (sign in once with `gh auth login`)
+  programs.gh.enable = true;
+  programs.git = {
+    enable = true;                     # needed so the gh credential helper lands in ~/.config/git/config
+    settings.user = {
+      name = "Karanjot Singh";
+      email = "drquark@duck.com";
+    };
+  };
+
   # ── Editor ───────────────────────────
   programs.neovim = {
     enable = true;
@@ -55,5 +65,9 @@
     obsidian
     pkgs.element-desktop
     pkgs.calcurse
+    go
+    gopls        # Go language server, for Cursor and Neovim
+    python3
+    uv           # fast Python package and venv manager (pip replacement)
   ];
 }
