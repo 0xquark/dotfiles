@@ -47,7 +47,7 @@
     opacity.terminal = 0.92;
   };
 
-  # User side (Home Manager). Qt/KDE apps like Dolphin are themed by Stylix too now that Plasma is gone.
+  # User side (Home Manager): GTK and Qt apps, Dolphin included
   home-manager.sharedModules = [
     {
       gtk.enable = true;

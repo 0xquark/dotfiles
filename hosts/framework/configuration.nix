@@ -60,7 +60,7 @@ in
   # You can disable this if you're only using the Wayland session.
   services.xserver.enable = true;
 
-  # Login screen. Autologin (below) skips it; you only see it after logging out of Sway
+  # Login screen, shown after logging out of Sway
   services.displayManager.sddm.enable = true;
 
   # Configure keymap in X11
@@ -76,25 +76,22 @@ in
     extraPackages = [ ];        # Home Manager installs tools on sway
   };
   security.polkit.enable = true;
-  # Boot straight into Sway, which locks itself right away (sway.nix), so the first
-  # screen is swaylock with fingerprint instead of SDDM's password-only login.
+  # Boot straight into Sway; it locks itself at start (sway.nix)
   services.displayManager.defaultSession = "sway";
   services.displayManager.autoLogin = {
     enable = true;
     user = "drquark";
   };
-  # swaylock: type password + Enter, or press Enter on an empty field then touch the sensor.
-  # fprintd normally runs before the password check, so a typed password would wait for a
-  # finger first; moving it after pam_unix (11700) means it only kicks in when the password fails.
+  # swaylock: password + Enter, or Enter on an empty field then touch the sensor.
+  # Fingerprint is checked after the password (pam_unix is 11700).
   security.pam.services.swaylock = {
     fprintAuth = true;
     rules.auth.fprintd.order = config.security.pam.services.swaylock.rules.auth.unix.order + 50;
   };
-  # These used to come with Plasma. Waybar's power-profile button needs the first;
-  # upower reports battery state to apps.
+  # Power profiles for Waybar's button; upower for battery info
   services.power-profiles-daemon.enable = true;
   services.upower.enable = true;
-  # Dolphin builds its "Open with" list from this menu file; outside Plasma there is none
+  # App menu for Dolphin's "Open with" list
   environment.etc."xdg/menus/applications.menu".source =
     "${pkgs.gnome-menus}/etc/xdg/menus/gnome-applications.menu";
 
@@ -160,11 +157,10 @@ in
     firefox-devedition
     unstable.code-cursor
 
-    # KDE Wallet, kept from Plasma. Apps look for a password store under the name
-    # org.freedesktop.secrets; this lets D-Bus start ksecretd when they first ask.
-    # Autologin means no login password to unlock it with, so it asks once per boot.
+    # KDE Wallet: keeps app passwords, asks for its own password once per boot
     kdePackages.kwallet
     kdePackages.kwalletmanager
+    # Starts the wallet when an app asks for it
     (writeTextDir "share/dbus-1/services/org.freedesktop.secrets.service" ''
       [D-BUS Service]
       Name=org.freedesktop.secrets

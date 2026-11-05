@@ -42,6 +42,9 @@
     };
   };
 
+  # Bash, set up by Home Manager (loads the aliases below)
+  programs.bash.enable = true;
+
   # Short commands for the terminal
   home.shellAliases = {
     nap = "systemctl suspend";
