@@ -78,6 +78,14 @@ in
     extraPackages = [ ];        # Home Manager installs tools on sway
   };
   security.polkit.enable = true;
+  # Boot straight into Sway, which locks itself right away (sway.nix), so the first
+  # screen is swaylock with fingerprint instead of SDDM's password-only login.
+  # Plasma is still reachable: log out of Sway and pick it in SDDM.
+  services.displayManager.defaultSession = "sway";
+  services.displayManager.autoLogin = {
+    enable = true;
+    user = "drquark";
+  };
   # swaylock: type password + Enter, or press Enter on an empty field then touch the sensor.
   # fprintd normally runs before the password check, so a typed password would wait for a
   # finger first; moving it after pam_unix (11700) means it only kicks in when the password fails.

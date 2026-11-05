@@ -54,6 +54,8 @@
 
       # ── Started with Sway, and only with Sway ──────────
       startup = [
+        # Lock right after autologin at boot (only on start, not on config reload)
+        { command = "swaylock -f"; }
         # Password pop-ups for admin tasks
         { command = "${pkgs.kdePackages.polkit-kde-agent-1}/libexec/polkit-kde-authentication-agent-1"; }
         # Notifications
