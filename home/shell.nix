@@ -1,6 +1,8 @@
-{ ... }:
+{ inputs, ... }:
 
 {
+  imports = [ inputs.nix-index-database.homeModules.nix-index ];
+
   # Keeps unlocked keys in memory for the session
   services.ssh-agent.enable = true;
 
@@ -49,5 +51,36 @@
   # Short commands for the terminal
   home.shellAliases = {
     nap = "systemctl suspend";
+    cat = "bat --paging=never"; # cat with colours and line numbers
   };
+
+  # ── Terminal tools (how-to: docs/terminal-tools.md) ──
+  # Prompt with git branch, language versions and how long a command took
+  programs.starship.enable = true;
+
+  # z <part of a folder name> jumps there; zi picks from a list
+  programs.zoxide.enable = true;
+
+  # Ctrl+R: search history, Ctrl+T: pick a file, Alt+C: jump into a folder
+  programs.fzf.enable = true;
+
+  # ls with colours, icons and git status (ls, ll, la, lt)
+  programs.eza = {
+    enable = true;
+    icons = "auto";
+    git = true;
+  };
+
+  # cat with syntax highlighting
+  programs.bat.enable = true;
+
+  # Per-project tools: cd into a folder with a .envrc and its packages load
+  programs.direnv = {
+    enable = true;
+    nix-direnv.enable = true; # caches the environment, so cd is instant
+  };
+
+  # , <program> runs anything from nixpkgs without installing it;
+  # unknown commands tell you which package has them
+  programs.nix-index-database.comma.enable = true;
 }
