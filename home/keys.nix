@@ -31,19 +31,21 @@ in
   services.playerctld.enable = true;
 
   # swayr: Mac-style window switching (remembers which windows you used last).
-  # Its daemon runs as a service; menus open in fuzzel (windows.nix).
+  # Its daemon runs as a service; menus open in Vicinae.
   programs.swayr = {
     enable = true;
     systemd.enable = true;
     settings = {
       menu = {
-        executable = "fuzzel";
+        executable = "vicinae";
         args = [
-          "--dmenu"
-          "--prompt={prompt}: "
+          "dmenu"
+          "--no-quick-look"
+          "--placeholder"
+          "{prompt}"
         ];
       };
-      # Plain text: fuzzel shows markup as-is
+      # Plain text: Vicinae shows markup as-is
       format = {
         window_format = "{urgency_start}{title}{urgency_end}  · {app_name} on {workspace_name}";
         workspace_format = "Workspace {name} on {output_name}";

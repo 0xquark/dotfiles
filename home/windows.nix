@@ -3,10 +3,33 @@ let
   hyper = "Mod4+Mod1+Control+Shift"; # Caps held, as in keys.nix
   jq = "${pkgs.jq}/bin/jq";
 
-  # Every open window in one menu: pick one, then choose what to do with it
+  # Every open window in a Vicinae list: pick one, then choose what to do with it
   windows = pkgs.writeShellScript "windows" ''
     # Opening it again while it's up closes it
-    pkill -x fuzzel && exit
+    if pgrep -f "vicinae dmenu" >/dev/null; then
+      vicinae close
+      exit
+    fi
+
+    pick() { vicinae dmenu --no-quick-look "$@"; }
+
+    # App name from its .desktop file, e.g. com.mitchellh.ghostty → Ghostty
+    declare -A names
+    name() {
+      if [ -z "''${names[$1]}" ]; then
+        local dir file
+        names[$1]=$1
+        IFS=: read -ra dirs <<<"''${XDG_DATA_HOME:-$HOME/.local/share}:$XDG_DATA_DIRS"
+        for dir in "''${dirs[@]}"; do
+          file=$dir/applications/$1.desktop
+          if [ -f "$file" ]; then
+            names[$1]=$(sed -n 's/^Name=//p' "$file" | head -n1)
+            break
+          fi
+        done
+      fi
+      echo "''${names[$1]}"
+    }
 
     # One line per window: id, workspace, tiled/floating, app, title
     list=$(swaymsg -t get_tree | ${jq} -r '
@@ -20,21 +43,36 @@ let
       | @tsv')
     [ -n "$list" ] || exit
 
-    # Shown as "3   title  · floating", with the app's icon
-    pick=$(while IFS=$'\t' read -r id ws kind app title; do
-        case $ws/$kind in
-          hidden/*) ws=-; tag="  · hidden" ;;
-          */floating) tag="  · floating" ;;
-          *) tag="" ;;
-        esac
-        printf '%-3s %s%s\0icon\x1f%s\n' "$ws" "$title" "$tag" "$app"
-      done <<<"$list" | fuzzel --dmenu --index --only-match --prompt "window: ") || exit
-    IFS=$'\t' read -r id ws kind app title < <(sed -n "$((pick + 1))p" <<<"$list")
+    # Shown as "Ghostty — ~/nixos   (workspace 1)"; Vicinae hands back that text
+    declare -A ids wss kinds titles
+    lines=()
+    while IFS=$'\t' read -r id ws kind app title; do
+      case $ws/$kind in
+        hidden/*) where="hidden" ;;
+        */floating) where="workspace $ws, floating" ;;
+        *) where="workspace $ws" ;;
+      esac
+      app=$(name "$app")
+      # Drop the app's name from the end of the title: "notes.md - Cursor" → "notes.md"
+      short=''${title% [-—] "''${app%% *}"*}
+      label="$app — ''${short:-$title}   ($where)"
+      # Two windows with the same title still need different lines
+      base=$label n=2
+      while [ -n "''${ids["$label"]}" ]; do label="$base #$n"; n=$((n + 1)); done
+      ids["$label"]=$id wss[$id]=$ws kinds[$id]=$kind titles[$id]=$title
+      lines+=("$label")
+    done <<<"$list"
+
+    chosen=$(printf '%s\n' "''${lines[@]}" \
+      | pick -n Windows -s "Open windows ({count})" -p "Search windows…") || exit
+    id=''${ids["$chosen"]}
+    [ -n "$id" ] || exit
+    ws=''${wss[$id]} kind=''${kinds[$id]} title=''${titles[$id]}
     on="[con_id=$id]"
 
     # Enter twice goes straight to the window
     action=$(printf '%s\n' "Go to" "Bring here" "Send to workspace…" "Float / tile" "Hide" "Close" \
-      | fuzzel --dmenu --only-match --minimal-lines --placeholder "$title" --prompt "do: ") || exit
+      | pick -n "$title" -s Actions -p "What should this window do?") || exit
 
     case $action in
       "Go to" | "Bring here")
@@ -50,7 +88,7 @@ let
         fi
         ;;
       "Send to workspace…")
-        to=$(seq 1 9 | fuzzel --dmenu --minimal-lines --prompt "workspace: ") || exit
+        to=$(seq 1 9 | pick -n "$title" -s "Send to workspace" -p "Workspace…") || exit
         [ "$ws" = hidden ] && swaymsg "$on scratchpad show"
         swaymsg "$on move container to workspace \"$to\""
         ;;
@@ -61,20 +99,11 @@ let
   '';
 in
 {
-  # Menus for the window picker and swayr; Stylix colours it
-  programs.fuzzel = {
-    enable = true;
-    settings.main = {
-      width = 70; # characters; room for long window titles
-      lines = 12;
-    };
-  };
-
   # Swipe three fingers down (or Hyper+W) for the window list; swipe up closes it
   wayland.windowManager.sway = {
     extraConfig = ''
       bindgesture swipe:3:down exec ${windows}
-      bindgesture swipe:3:up exec pkill -x fuzzel
+      bindgesture swipe:3:up exec vicinae close
     '';
     # mkOptionDefault adds to the other shortcuts, as in keys.nix
     config.keybindings = lib.mkOptionDefault { "${hyper}+w" = "exec ${windows}"; };
