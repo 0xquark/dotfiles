@@ -24,6 +24,9 @@
       workspace 7 output eDP-1 DP-1
       workspace 8 output eDP-1 DP-1
       workspace 9 output eDP-1 DP-1
+      # Three-finger swipe: next / previous workspace on this screen, Mac direction
+      bindgesture swipe:3:left  workspace next_on_output
+      bindgesture swipe:3:right workspace prev_on_output
     '';
 
     config = {
