@@ -11,6 +11,7 @@ in
 {
   imports = [
     ./hardware-configuration.nix
+    ./battery.nix
     ./desktop.nix
     ./keyboard.nix
     ./services.nix

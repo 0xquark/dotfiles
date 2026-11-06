@@ -23,6 +23,23 @@ let
   # Terminal apps get their own window name, so Sway can tell them apart
   termPopup = id: cmd: "${popup} ${id} ghostty --class=${id} -e ${cmd}";
 
+  # Battery charge limit: shows it in the bar, and switches between 80% and 100% on click
+  chargeLimit = pkgs.writeShellScript "charge-limit" ''
+    limit=/sys/class/power_supply/BAT1/charge_control_end_threshold
+    [ -e "$limit" ] || exit 0
+    now=$(cat "$limit")
+    if [ "$1" = toggle ]; then
+      if [ "$now" -le 80 ]; then echo 100; else echo 80; fi > "$limit"
+      pkill -RTMIN+8 waybar   # refresh the bar right away
+      exit
+    fi
+    if [ "$now" -le 80 ]; then
+      echo '{"text": "LIM 80%", "tooltip": "Battery stops at 80%. Click to charge to 100%.", "class": "limited"}'
+    else
+      echo '{"text": "LIM OFF", "tooltip": "Charging to 100%. Click to stop at 80%.", "class": "full"}'
+    fi
+  '';
+
   # Window names, sizes, and which bar each one drops from
   popups = {
     "com.drquark.popup.network" = {
@@ -140,7 +157,10 @@ in
         "temperature"
         "disk"
       ];
-      modules-right = [ "network#speed" ];
+      modules-right = [
+        "custom/charge-limit"
+        "network#speed"
+      ];
       modules-center = [ "mpris" ];
 
       # Now playing: Spotify, or whichever player was used last
@@ -179,6 +199,14 @@ in
         format = "DN {bandwidthDownBytes}  UP {bandwidthUpBytes}";
         interval = 2;
       };
+      # Click: 80% limit for days at the desk, 100% before a day out
+      "custom/charge-limit" = {
+        exec = "${chargeLimit}";
+        return-type = "json";
+        interval = 60;
+        signal = 8;
+        on-click = "${chargeLimit} toggle";
+      };
     };
 
     # Stylix writes the colours; this only adds the lettering on top
@@ -186,6 +214,13 @@ in
       * {
         font-family: "JetBrainsMono Nerd Font";
         letter-spacing: 1px;
+      }
+      /* Green while the battery is protected; full charge stands out, so it isn't left on by accident */
+      #custom-charge-limit.limited {
+        color: @base0B;
+      }
+      #custom-charge-limit.full {
+        color: @base09;
       }
     '';
   };
