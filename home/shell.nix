@@ -45,7 +45,7 @@
     };
   };
 
-  # Bash, set up by Home Manager (loads the aliases below)
+  # Bash, for scripts and nix-shell (the aliases below work in both shells)
   programs.bash.enable = true;
 
   # Short commands for the terminal
@@ -54,10 +54,35 @@
     cat = "bat --paging=never"; # cat with colours and line numbers
   };
 
-  # ── Terminal tools (how-to: docs/terminal-tools.md) ──
-  # Prompt with git branch, language versions and how long a command took
-  programs.starship.enable = true;
+  # zsh: the login shell (set in configuration.nix)
+  programs.zsh = {
+    enable = true;
+    autosuggestion.enable = true; # grey suggestion from history; → accepts it
+    syntaxHighlighting.enable = true; # commands turn red while misspelled
+    history = {
+      size = 100000;
+      save = 100000;
+      share = true; # every open terminal sees the others' commands
+      ignoreDups = true;
+    };
+    # The old NixOS prompt, plus the git branch:
+    # [drquark@delorean:~/nixos (main)]$   (red as root)
+    initContent = ''
+      zstyle ':completion:*' menu select   # Tab opens a menu you move through with the arrows
 
+      autoload -Uz vcs_info
+      zstyle ':vcs_info:*' enable git
+      zstyle ':vcs_info:git:*' formats ' (%b)'
+      setopt prompt_subst
+      precmd() {
+        vcs_info
+        print -Pn "\e]0;%n@%m: %~\a"   # window title, shown in Waybar
+      }
+      PROMPT=$'\n%B%(!.%F{red}.%F{green})[%n@%m:%~''${vcs_info_msg_0_}]$%f%b '
+    '';
+  };
+
+  # ── Terminal tools  ──
   # z <part of a folder name> jumps there; zi picks from a list
   programs.zoxide.enable = true;
 

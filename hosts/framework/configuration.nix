@@ -54,7 +54,15 @@ in
       "networkmanager"
       "wheel"
     ];
+    shell = pkgs.zsh;
   };
+
+  # zsh as login shell; Home Manager writes the rest (home/shell.nix)
+  programs.zsh = {
+    enable = true;
+    enableGlobalCompInit = false; # Home Manager sets up completion itself
+  };
+  environment.pathsToLink = [ "/share/zsh" ]; # completions for installed programs
 
   # ── Nix ───────────────────────────────────────────
   nix.settings.experimental-features = [
