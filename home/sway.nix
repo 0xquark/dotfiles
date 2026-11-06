@@ -1,6 +1,7 @@
 {
   config,
   osConfig,
+  lib,
   pkgs,
   ...
 }:
@@ -77,6 +78,12 @@
       gaps = {
         inner = 10;
         outer = 4;
+        top = -4; # windows sit 6px under the bar instead of 14px
+      };
+      # Focused border: a burnt orange, softer than the bright accent (base0D)
+      colors.focused = {
+        border = lib.mkForce "#b05e24";
+        childBorder = lib.mkForce "#b05e24";
       };
       window = {
         titlebar = false;
@@ -105,8 +112,6 @@
         { command = "swaylock -f"; }
         # Password pop-ups for admin tasks
         { command = "${pkgs.kdePackages.polkit-kde-agent-1}/libexec/polkit-kde-authentication-agent-1"; }
-        # Notifications
-        { command = "mako"; }
         # KDE Connect, with its tray icon
         { command = "kdeconnect-indicator"; }
       ];

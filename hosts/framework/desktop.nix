@@ -50,6 +50,9 @@ in
   services.power-profiles-daemon.enable = true;
   services.upower.enable = true;
 
+  # GVfs: lets apps read web addresses like files, e.g. Spotify's album covers in swaync
+  services.gvfs.enable = true;
+
   # App menu for Dolphin's "Open with" list
   environment.etc."xdg/menus/applications.menu".source =
     "${pkgs.gnome-menus}/etc/xdg/menus/gnome-applications.menu";

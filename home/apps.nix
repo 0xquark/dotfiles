@@ -1,4 +1,26 @@
-{ inputs, pkgs, ... }:
+{
+  config,
+  inputs,
+  lib,
+  pkgs,
+  ...
+}:
+let
+  c = config.lib.stylix.colors;
+  # A theme colour moved 10% toward the background, e.g. ff7a1a → e76f18
+  dim =
+    base:
+    let
+      mix =
+        ch:
+        let
+          x = lib.toInt c."${base}-rgb-${ch}";
+          bg = lib.toInt c."base00-rgb-${ch}";
+        in
+        lib.fixedWidthString 2 "0" (lib.toHexString ((x * 90 + bg * 10 + 50) / 100));
+    in
+    "#${mix "r"}${mix "g"}${mix "b"}";
+in
 {
   imports = [
     inputs.zen-browser.homeModules.beta
@@ -31,6 +53,21 @@
       window-padding-y = 12;
       cursor-style = "bar";
       confirm-close-surface = false; # close without asking
+      # Softer colours than the theme's neon accents (these win over the Stylix theme)
+      palette = [
+        "1=${dim "base08"}" # red
+        "9=${dim "base08"}"
+        "2=${dim "base0B"}" # green
+        "10=${dim "base0B"}"
+        "3=${dim "base0A"}" # yellow
+        "11=${dim "base0A"}"
+        "4=${dim "base0D"}" # orange (blue slot): folders
+        "12=${dim "base0D"}"
+        "5=${dim "base0E"}" # magenta
+        "13=${dim "base0E"}"
+        "6=${dim "base0C"}" # teal
+        "14=${dim "base0C"}"
+      ];
       keybind = [
         "ctrl+insert=copy_to_clipboard"
         "shift+insert=paste_from_clipboard"

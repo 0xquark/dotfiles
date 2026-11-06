@@ -1,5 +1,12 @@
-{ lib, pkgs, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
 let
+  c = config.lib.stylix.colors.withHashtag;
+
   mod = "Mod4"; # the Framework key (Super),
   alt = "Mod1"; # Alt (Option on a Mac)
   hyper = "Mod4+Mod1+Control+Shift"; # what keyd sends while Caps is held
@@ -29,6 +36,57 @@ in
 
   # Media keys control the player you used most recently
   services.playerctld.enable = true;
+
+  # SwayOSD: a small, flat pop-up for volume, brightness and Caps Lock.
+  # Icon size (32px) and minimum width (250px) are fixed by SwayOSD itself.
+  services.swayosd = {
+    enable = true;
+    stylePath = pkgs.writeText "swayosd.css" ''
+      window#osd {
+        border-radius: 6px;
+        border: 1px solid ${c.base02};
+        background: ${c.base00};
+      }
+      window#osd #container {
+        margin: 6px 14px;
+      }
+      window#osd image,
+      window#osd label {
+        color: ${c.base05};
+      }
+      window#osd progressbar:disabled,
+      window#osd image:disabled {
+        opacity: 0.5;
+      }
+      window#osd progressbar,
+      window#osd segmentedprogress {
+        min-height: 3px;
+        border-radius: 2px;
+        background: transparent;
+        border: none;
+      }
+      window#osd trough,
+      window#osd segment {
+        min-height: inherit;
+        border-radius: inherit;
+        border: none;
+        background: ${c.base02};
+      }
+      window#osd progress,
+      window#osd segment.active {
+        min-height: inherit;
+        border-radius: inherit;
+        border: none;
+        background: ${c.base0D};
+      }
+      window#osd segment {
+        margin-left: 8px;
+      }
+      window#osd segment:first-child {
+        margin-left: 0;
+      }
+    '';
+  };
 
   # swayr: Mac-style window switching (remembers which windows you used last).
   # Its daemon runs as a service; menus open in Vicinae.
@@ -76,15 +134,17 @@ in
       "${mod}+Control+q" = "exec swaylock -f";
       "${mod}+Shift+s" = "exec grim -g \"$(slurp)\" - | wl-copy";
       "Print" = "exec grim - | wl-copy";
-      "${mod}+n" = "exec makoctl dismiss --all";
+      "${mod}+n" = "exec swaync-client -t -sw"; # notification centre
+      "${mod}+Shift+n" = "exec swaync-client -C -sw"; # clear all notifications
       "${mod}+Tab" = "workspace back_and_forth";
       "${mod}+Shift+Escape" = "exec systemctl suspend"; # sleep
-      # Laptop keys: volume and brightness
-      "XF86AudioRaiseVolume" = "exec wpctl set-volume -l 1.0 @DEFAULT_AUDIO_SINK@ 5%+";
-      "XF86AudioLowerVolume" = "exec wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-";
-      "XF86AudioMute" = "exec wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle";
-      "XF86MonBrightnessUp" = "exec brightnessctl set 5%+";
-      "XF86MonBrightnessDown" = "exec brightnessctl set 5%-";
+      # Laptop keys: volume and brightness, shown on screen by SwayOSD
+      "XF86AudioRaiseVolume" = "exec swayosd-client --output-volume +5 --max-volume 100";
+      "XF86AudioLowerVolume" = "exec swayosd-client --output-volume -5";
+      "XF86AudioMute" = "exec swayosd-client --output-volume mute-toggle";
+      "XF86MonBrightnessUp" = "exec swayosd-client --brightness +5";
+      "XF86MonBrightnessDown" = "exec swayosd-client --brightness -5";
+      "--release Caps_Lock" = "exec swayosd-client --caps-lock"; # after the light has changed
 
       # Media: play/pause, next, previous (F4–F6)
       "XF86AudioPlay" = "exec ${pkgs.playerctl}/bin/playerctl play-pause";
