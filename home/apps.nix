@@ -89,9 +89,30 @@ in
   programs.gh.enable = true;
   programs.git = {
     enable = true; # needed so the gh credential helper lands in ~/.config/git/config
-    settings.user = {
-      name = "Karanjot Singh";
-      email = "drquark@duck.com";
+    settings = {
+      user = {
+        name = "Karanjot Singh";
+        email = "drquark@duck.com";
+      };
+      init.defaultBranch = "main";
+      pull.rebase = true; # git pull puts your commits on top, no merge commits
+      rebase.autoStash = true; # and moves uncommitted changes out of the way meanwhile
+      push.autoSetupRemote = true; # the first push of a new branch needs no --set-upstream
+      fetch.prune = true; # forget branches deleted on the server
+      rerere.enabled = true; # a conflict you solved once is solved again automatically
+      merge.conflictStyle = "zdiff3"; # conflicts also show the original text
+      diff.algorithm = "histogram"; # clearer diffs when code moves around
+    };
+  };
+
+  # delta: readable diffs for git diff, show and log -p, coloured like bat
+  programs.delta = {
+    enable = true;
+    enableGitIntegration = true;
+    options = {
+      navigate = true; # n / N jump between files
+      line-numbers = true;
+      syntax-theme = "base16-stylix";
     };
   };
 
@@ -111,6 +132,8 @@ in
     calcurse
     go
     gopls # Go language server, for Cursor and Neovim
+    nixd # Nix language server: completion, errors, option docs
+    nixfmt # formats .nix files; nixd uses it too
     python3
     uv # fast Python package and venv manager (pip replacement)
 

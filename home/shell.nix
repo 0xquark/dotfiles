@@ -1,4 +1,4 @@
-{ inputs, ... }:
+{ inputs, pkgs, ... }:
 
 {
   imports = [ inputs.nix-index-database.homeModules.nix-index ];
@@ -87,7 +87,12 @@
   programs.zoxide.enable = true;
 
   # Ctrl+R: search history, Ctrl+T: pick a file, Alt+C: jump into a folder
-  programs.fzf.enable = true;
+  # (Ctrl+R is atuin's, below.) File and folder lists come from fd, so they skip .gitignored files
+  programs.fzf = {
+    enable = true;
+    fileWidgetCommand = "fd --type f";
+    changeDirWidgetCommand = "fd --type d";
+  };
 
   # ls with colours, icons and git status (ls, ll, la, lt)
   programs.eza = {
@@ -108,4 +113,28 @@
   # , <program> runs anything from nixpkgs without installing it;
   # unknown commands tell you which package has them
   programs.nix-index-database.comma.enable = true;
+
+  # fd: find files by name, fast; jq: read and filter JSON
+  home.packages = with pkgs; [
+    fd
+    jq
+  ];
+
+  # tldr <command>: short help pages made of examples (refreshed automatically)
+  programs.tealdeer.enable = true;
+
+  # yazi: file manager in the terminal; `y` opens it, and you stay in the folder you quit in
+  programs.yazi.enable = true;
+
+  # atuin: Ctrl+R searches every command you've run, with folder, time and exit status
+  programs.atuin = {
+    enable = true;
+    flags = [ "--disable-up-arrow" ]; # ↑ stays the plain previous command
+    settings = {
+      style = "compact";
+      inline_height = 20; # opens under the prompt, not full screen
+      enter_accept = false; # Enter puts the command on the line so you can edit it first
+      update_check = false; # updates come with Nix
+    };
+  };
 }
