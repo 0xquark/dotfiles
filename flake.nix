@@ -5,7 +5,7 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
     nixos-hardware.url = "github:NixOS/nixos-hardware/master";
     nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixos-unstable";
-    
+
     # Zen browser (not in nixpkgs)
     zen-browser = {
       url = "github:0xc000022070/zen-browser-flake";
@@ -14,7 +14,7 @@
     };
     home-manager = {
       url = "github:nix-community/home-manager/release-26.05";
-      inputs.nixpkgs.follows = "nixpkgs";   # one nixpkgs for everything
+      inputs.nixpkgs.follows = "nixpkgs"; # one nixpkgs for everything
     };
     # Theme Engine (Stylix branch version must match the nixos release (26.05))
     stylix = {
@@ -26,31 +26,42 @@
       url = "github:Gerg-L/spicetify-nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-   # Claude
-   claude-code = {
+    # Claude
+    claude-code = {
       url = "github:sadjow/claude-code-nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };
 
-  outputs = { nixpkgs, nixos-hardware, home-manager, stylix, ... }@inputs: {
-    # Named after your hostname, so `nixos-rebuild --flake ~/nixos` finds it
-    nixosConfigurations.delorean = nixpkgs.lib.nixosSystem {
-      specialArgs = { inherit inputs; };     # lets any module use inputs.*
-      modules = [
-        ./hosts/framework/configuration.nix
-        ./hosts/framework/theme.nix
-        nixos-hardware.nixosModules.framework-intel-core-ultra-series3
-        stylix.nixosModules.stylix
-        home-manager.nixosModules.home-manager
-        {
-          home-manager.useGlobalPkgs = true;
-          home-manager.useUserPackages = true;
-          home-manager.backupFileExtension = "bak";  # don't fail on existing dotfiles
-          home-manager.extraSpecialArgs = { inherit inputs; };
-          home-manager.users.drquark = import ./home;
-        }
-      ];
+  outputs =
+    {
+      nixpkgs,
+      nixos-hardware,
+      home-manager,
+      stylix,
+      ...
+    }@inputs:
+    {
+      # Named after your hostname, so `nixos-rebuild --flake ~/nixos` finds it
+      nixosConfigurations.delorean = nixpkgs.lib.nixosSystem {
+        specialArgs = { inherit inputs; }; # lets any module use inputs.*
+        modules = [
+          ./hosts/framework/configuration.nix
+          ./hosts/framework/theme.nix
+          nixos-hardware.nixosModules.framework-intel-core-ultra-series3
+          stylix.nixosModules.stylix
+          home-manager.nixosModules.home-manager
+          {
+            home-manager.useGlobalPkgs = true;
+            home-manager.useUserPackages = true;
+            home-manager.backupFileExtension = "bak"; # don't fail on existing dotfiles
+            home-manager.extraSpecialArgs = { inherit inputs; };
+            home-manager.users.drquark = import ./home;
+          }
+        ];
+      };
+
+      # `nix fmt` tidies every .nix file in the repo
+      formatter.x86_64-linux = nixpkgs.legacyPackages.x86_64-linux.nixfmt-tree;
     };
-  };
 }

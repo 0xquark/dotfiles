@@ -1,8 +1,13 @@
-{ config, osConfig, pkgs, ... }:
+{
+  config,
+  osConfig,
+  pkgs,
+  ...
+}:
 {
   wayland.windowManager.sway = {
     enable = true;
-    package = null;   # use the system Sway, the one SDDM lists
+    package = null; # use the system Sway, the one SDDM lists
 
     extraConfig = ''
       # Lid closed: switch the laptop screen off; Sway moves its workspaces to the monitor
@@ -24,30 +29,55 @@
     config = {
       # ── Input ─────────────────────────────────────────
       input = {
-        "type:touchpad" = { tap = "enabled"; natural_scroll = "enabled"; dwt = "enabled"; };
-        "type:pointer"  = { natural_scroll = "enabled"; };   # mice: scroll inverted
-	"type:keyboard" = { xkb_layout = "us"; xkb_variant = "mac"; repeat_delay = "250"; repeat_rate = "40"; };
+        "type:touchpad" = {
+          tap = "enabled";
+          natural_scroll = "enabled";
+          dwt = "enabled";
+        };
+        "type:pointer" = {
+          natural_scroll = "enabled";
+        }; # mice: scroll inverted
+        "type:keyboard" = {
+          xkb_layout = "us";
+          xkb_variant = "mac";
+          repeat_delay = "250";
+          repeat_rate = "40";
+        };
       };
 
       # ── Display (find the name with: swaymsg -t get_outputs) ──
       # Laptop on the left, monitor to its right (Sway uses these positions for dragging and moving)
-      output."eDP-1"  = { scale = "2"; position = "0,0"; };       #laptop
-      output."DP-1"   = { scale = "1"; position = "1440,0"; };    #monitor
+      output."eDP-1" = {
+        scale = "2";
+        position = "0,0";
+      }; # laptop
+      output."DP-1" = {
+        scale = "1";
+        position = "1440,0";
+      }; # monitor
 
       # ── Look: gaps, thin borders, no title bars ─────────
-      gaps = { inner = 10; outer = 4; };
+      gaps = {
+        inner = 10;
+        outer = 4;
+      };
       window = {
         titlebar = false;
         border = 2;
         commands = [
           # Quick note: floating, centred, hidden in the scratchpad when not shown
           {
-            criteria = { app_id = "com.drquark.quicknote"; };
+            criteria = {
+              app_id = "com.drquark.quicknote";
+            };
             command = "floating enable, resize set 720 520, move position center, move scratchpad, scratchpad show";
           }
         ];
       };
-      floating = { titlebar = false; border = 2; };
+      floating = {
+        titlebar = false;
+        border = 2;
+      };
 
       # ── Bar: Waybar (bar.nix) ───────
       bars = [ { command = "waybar"; } ];
@@ -66,7 +96,7 @@
     };
   };
 
-  programs.swaylock.enable = true;   # coloured by Stylix
+  programs.swaylock.enable = true; # coloured by Stylix
 
   # Idle: dim at 4:50, lock at 5 min, screen off at 10, lock before sleep.
   # Runs as a service, so it restarts if it crashes.
@@ -79,19 +109,31 @@
     {
       enable = true;
       timeouts = [
-        { timeout = 290; command = "${brightnessctl} -s set 10%"; resumeCommand = "${brightnessctl} -r"; }
-        { timeout = 300; command = lock; }
-        { timeout = 600; command = "${swaymsg} 'output * power off'"; resumeCommand = "${swaymsg} 'output * power on'"; }
+        {
+          timeout = 290;
+          command = "${brightnessctl} -s set 10%";
+          resumeCommand = "${brightnessctl} -r";
+        }
+        {
+          timeout = 300;
+          command = lock;
+        }
+        {
+          timeout = 600;
+          command = "${swaymsg} 'output * power off'";
+          resumeCommand = "${swaymsg} 'output * power on'";
+        }
       ];
       events = {
         before-sleep = lock;
-        lock = lock;   # loginctl lock-session
+        lock = lock; # loginctl lock-session
       };
     };
 
   home.packages = with pkgs; [
-    brightnessctl        # brightness keys
-    wl-clipboard         # wl-copy, wl-paste
-    grim slurp           # screenshots
+    brightnessctl # brightness keys
+    wl-clipboard # wl-copy, wl-paste
+    grim
+    slurp # screenshots
   ];
 }

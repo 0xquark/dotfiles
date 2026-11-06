@@ -13,7 +13,7 @@
       # Applies to every host
       "*" = {
         AddKeysToAgent = "yes";
-        IdentitiesOnly = true;   # offer ONLY the key listed for that host
+        IdentitiesOnly = true; # offer ONLY the key listed for that host
       };
 
       # ── Personal ───────────────────────────────
@@ -31,10 +31,11 @@
       # ── CERN ───────────────────────────────────
       "gitlab.cern.ch" = {
         User = "git";
-        Port = 7999;             # CERN GitLab uses SSH on port 7999
+        Port = 7999; # CERN GitLab uses SSH on port 7999
         IdentityFile = "~/.ssh/id_ed25519_cern";
       };
-      "lxplus" = {               # ssh lxplus
+      "lxplus" = {
+        # ssh lxplus
         HostName = "lxplus.cern.ch";
         User = "karanjot";
         IdentityFile = "~/.ssh/id_ed25519_cern";

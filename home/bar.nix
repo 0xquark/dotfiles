@@ -25,17 +25,36 @@ let
 
   # Window names, sizes, and which bar each one drops from
   popups = {
-    "com.drquark.popup.network"   = { w = 560; h = 460; bar = "top"; };
-    "com.drquark.popup.bluetooth" = { w = 640; h = 460; bar = "top"; };
-    "org.pulseaudio.pavucontrol"  = { w = 560; h = 480; bar = "top"; };
-    "com.drquark.popup.btop"      = { w = 900; h = 560; bar = "bottom"; };
+    "com.drquark.popup.network" = {
+      w = 560;
+      h = 460;
+      bar = "top";
+    };
+    "com.drquark.popup.bluetooth" = {
+      w = 640;
+      h = 460;
+      bar = "top";
+    };
+    "org.pulseaudio.pavucontrol" = {
+      w = 560;
+      h = 480;
+      bar = "top";
+    };
+    "com.drquark.popup.btop" = {
+      w = 900;
+      h = 560;
+      bar = "bottom";
+    };
   };
 in
 {
   # Floating, sized, placed under the mouse, then nudged clear of the bar
   wayland.windowManager.sway.config.window.commands = lib.mapAttrsToList (id: p: {
-    criteria = { app_id = id; };
-    command = "floating enable, resize set ${toString p.w} ${toString p.h}, move position mouse, "
+    criteria = {
+      app_id = id;
+    };
+    command =
+      "floating enable, resize set ${toString p.w} ${toString p.h}, move position mouse, "
       + (if p.bar == "top" then "move down 40 px" else "move up 34 px");
   }) popups;
 
@@ -48,18 +67,33 @@ in
       height = 30;
       spacing = 4;
 
-      modules-left   = [ "sway/workspaces" "sway/mode" "sway/window" ];
+      modules-left = [
+        "sway/workspaces"
+        "sway/mode"
+        "sway/window"
+      ];
       modules-center = [ "clock" ];
-      modules-right  = [ "tray" "power-profiles-daemon" "network" "bluetooth" "pulseaudio" "backlight" "battery" ];
+      modules-right = [
+        "tray"
+        "power-profiles-daemon"
+        "network"
+        "bluetooth"
+        "pulseaudio"
+        "backlight"
+        "battery"
+      ];
 
       # Text labels instead of icon glyphs: nothing to render as boxes, and it suits the HUD look
       "sway/window".max-length = 60;
       clock = {
         format = "{:%a %d %b  %H:%M}";
         tooltip-format = "<tt>{calendar}</tt>";
-      };    
+      };
       battery = {
-        states = { warning = 25; critical = 10; };
+        states = {
+          warning = 25;
+          critical = 10;
+        };
         format = "PWR {capacity}%";
         format-charging = "CHG {capacity}%";
         format-plugged = "AC {capacity}%";
@@ -84,7 +118,12 @@ in
       };
       power-profiles-daemon = {
         format = "{icon}";
-        format-icons = { default = "BAL"; performance = "PERF"; balanced = "BAL"; power-saver = "ECO"; };
+        format-icons = {
+          default = "BAL";
+          performance = "PERF";
+          balanced = "BAL";
+          power-saver = "ECO";
+        };
       };
       tray.spacing = 8;
     };
@@ -95,21 +134,29 @@ in
       height = 26;
       spacing = 4;
 
-      modules-left  = [ "cpu" "memory" "temperature" "disk" ];
+      modules-left = [
+        "cpu"
+        "memory"
+        "temperature"
+        "disk"
+      ];
       modules-right = [ "network#speed" ];
       modules-center = [ "mpris" ];
-      
+
       # Now playing: Spotify, or whichever player was used last
       mpris = {
-        format        = "NOW {dynamic}";                 # e.g. NOW Meltdown - Clint Mansell
+        format = "NOW {dynamic}"; # e.g. NOW Meltdown - Clint Mansell
         format-paused = "PAUSED {dynamic}";
-        dynamic-order = [ "title" "artist" ];            # what to show, in this order
-        dynamic-len   = 40;                              # shorten long titles
+        dynamic-order = [
+          "title"
+          "artist"
+        ]; # what to show, in this order
+        dynamic-len = 40; # shorten long titles
         tooltip-format = "{player}: {title} - {artist} ({album})";
-        on-click       = "${pkgs.playerctl}/bin/playerctl play-pause";
+        on-click = "${pkgs.playerctl}/bin/playerctl play-pause";
         on-click-right = "${pkgs.playerctl}/bin/playerctl next";
-        on-scroll-up   = "${pkgs.playerctl}/bin/playerctl previous";
-      };  
+        on-scroll-up = "${pkgs.playerctl}/bin/playerctl previous";
+      };
       cpu = {
         format = "CPU {usage}%";
         interval = 2;
@@ -147,7 +194,7 @@ in
   services.mako = {
     enable = true;
     settings = {
-      default-timeout = 5000;   # milliseconds
+      default-timeout = 5000; # milliseconds
       anchor = "top-right";
       border-size = 2;
       border-radius = 6;
@@ -155,7 +202,10 @@ in
   };
 
   # Opened by clicking the bar's sound and Bluetooth labels
-  home.packages = with pkgs; [ pavucontrol bluetui ];
+  home.packages = with pkgs; [
+    pavucontrol
+    bluetui
+  ];
 
   # btop: opened by clicking CPU or RAM in the bottom bar (coloured by Stylix)
   programs.btop.enable = true;
