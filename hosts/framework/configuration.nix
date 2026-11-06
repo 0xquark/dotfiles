@@ -18,6 +18,7 @@ in
 
   # ── Boot ──────────────────────────────────────────
   boot.loader.systemd-boot.enable = true;
+  boot.loader.systemd-boot.configurationLimit = 10; # keeps the 1 GB /boot from filling up
   boot.loader.efi.canTouchEfiVariables = true;
   boot.kernelPackages = pkgs.linuxPackages_latest;
 
@@ -59,6 +60,7 @@ in
     "nix-command"
     "flakes"
   ];
+  nix.settings.auto-optimise-store = true; # stores identical files once
   nixpkgs.config.allowUnfree = true;
 
   # Newest Claude Code instead of the one in stable nixpkgs
@@ -78,7 +80,6 @@ in
   programs.nix-ld.enable = true;
 
   # ── Apps for every user ───────────────────────────
-  programs.firefox.enable = true;
   environment.systemPackages = with pkgs; [
     vim
     git

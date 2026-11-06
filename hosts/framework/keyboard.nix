@@ -1,11 +1,12 @@
 { ... }:
 
 {
-  # Layout on the login screen (Sway sets its own in sway.nix)
+  # Layout on the login screen and text consoles (Sway sets its own in sway.nix)
   services.xserver.xkb = {
     layout = "us";
     variant = "mac";
   };
+  console.useXkbConfig = true;
 
   # Mac-style copy and paste: Alt (where Cmd sits on a Mac) + C / V, in every app
   services.keyd = {

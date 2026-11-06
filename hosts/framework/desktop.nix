@@ -1,31 +1,44 @@
-{ config, pkgs, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
+
+let
+  # SDDM used to set the session type; Chromium-based apps read it to pick Wayland
+  sway = "env XDG_SESSION_TYPE=wayland ${config.programs.sway.package}/bin/sway";
+in
 
 {
-  # ── Login: straight into Sway ─────────────────────
-  # Login screen, shown after logging out of Sway
-  services.displayManager.sddm.enable = true;
-  services.xserver.enable = true; # SDDM's screen runs on X11
-
-  # Boot straight into Sway; it locks itself at start (sway.nix)
-  services.displayManager.defaultSession = "sway";
-  services.displayManager.autoLogin = {
+  # ── Login: greetd ─────────────────────────────────
+  # Boot straight into Sway; it locks itself at start (sway.nix).
+  # After logging out, tuigreet asks for a password in the terminal.
+  services.greetd = {
     enable = true;
-    user = "drquark";
+    useTextGreeter = true; # keeps boot messages off the login screen
+    settings = {
+      initial_session = {
+        user = "drquark";
+        command = sway;
+      };
+      default_session.command = "${pkgs.tuigreet}/bin/tuigreet --time --remember --asterisks --cmd '${sway}'";
+    };
   };
 
   # ── Sway ──────────────────────────────────────────
   programs.sway = {
-    enable = true; # adds "Sway" to SDDM's session menu
+    enable = true;
     wrapperFeatures.gtk = true;
     extraPackages = [ ]; # Home Manager installs tools on sway
   };
 
-  # swaylock: password + Enter, or Enter on an empty field then touch the sensor.
+  # swaylock and greetd: password + Enter, or Enter on an empty field then touch the sensor.
   # Fingerprint is checked after the password (pam_unix is 11700).
-  security.pam.services.swaylock = {
+  security.pam.services = lib.genAttrs [ "swaylock" "greetd" ] (name: {
     fprintAuth = true;
-    rules.auth.fprintd.order = config.security.pam.services.swaylock.rules.auth.unix.order + 50;
-  };
+    rules.auth.fprintd.order = config.security.pam.services.${name}.rules.auth.unix.order + 50;
+  });
 
   # Electron and Chromium apps (Cursor, Discord, Helium) run natively on Wayland: sharp, not blurry
   environment.sessionVariables.NIXOS_OZONE_WL = "1";
