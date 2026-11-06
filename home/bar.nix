@@ -125,12 +125,16 @@ in
         format-wifi = "NET {essid}";
         format-ethernet = "NET WIRED";
         format-disconnected = "NET OFF";
+        max-length = 12; # long names end in "…"; hover for the full one
         tooltip-format = "{ipaddr}";
+        tooltip-format-wifi = "{essid} ({signalStrength}%)  {ipaddr}";
         on-click = termPopup "com.drquark.popup.network" "nmtui";
       };
       bluetooth = {
         format = "BT {status}";
         format-connected = "BT {device_alias}";
+        max-length = 12;
+        tooltip-format-connected = "{device_alias}";
         on-click = termPopup "com.drquark.popup.bluetooth" "bluetui";
       };
       power-profiles-daemon = {
