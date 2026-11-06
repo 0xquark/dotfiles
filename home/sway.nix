@@ -1,4 +1,4 @@
-{ pkgs, ... }:
+{ config, osConfig, pkgs, ... }:
 {
   wayland.windowManager.sway = {
     enable = true;
@@ -62,16 +62,34 @@
         { command = "mako"; }
         # KDE Connect, with its tray icon
         { command = "kdeconnect-indicator"; }
-        # Lock after 5 min, screen off after 10, lock before sleep
-        { command = "swayidle -w timeout 300 'swaylock -f' timeout 600 'swaymsg \"output * power off\"' resume 'swaymsg \"output * power on\"' before-sleep 'swaylock -f'"; }
       ];
     };
   };
 
   programs.swaylock.enable = true;   # coloured by Stylix
 
+  # Idle: dim at 4:50, lock at 5 min, screen off at 10, lock before sleep.
+  # Runs as a service, so it restarts if it crashes.
+  services.swayidle =
+    let
+      lock = "${config.programs.swaylock.package}/bin/swaylock -f";
+      brightnessctl = "${pkgs.brightnessctl}/bin/brightnessctl";
+      swaymsg = "${osConfig.programs.sway.package}/bin/swaymsg";
+    in
+    {
+      enable = true;
+      timeouts = [
+        { timeout = 290; command = "${brightnessctl} -s set 10%"; resumeCommand = "${brightnessctl} -r"; }
+        { timeout = 300; command = lock; }
+        { timeout = 600; command = "${swaymsg} 'output * power off'"; resumeCommand = "${swaymsg} 'output * power on'"; }
+      ];
+      events = {
+        before-sleep = lock;
+        lock = lock;   # loginctl lock-session
+      };
+    };
+
   home.packages = with pkgs; [
-    swayidle
     brightnessctl        # brightness keys
     wl-clipboard         # wl-copy, wl-paste
     grim slurp           # screenshots
