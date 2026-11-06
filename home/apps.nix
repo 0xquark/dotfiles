@@ -2,6 +2,7 @@
   config,
   inputs,
   lib,
+  osConfig,
   pkgs,
   ...
 }:
@@ -122,6 +123,50 @@ in
     defaultEditor = true; # used by git commit, sudoedit, etc.
     viAlias = true; # alias for vi
   };
+
+  # Cursor, from unstable. Home Manager installs it so it can add a "Stylix" colour theme
+  # that follows whichever theme is active. settings.json stays yours to edit.
+  programs.cursor = {
+    enable = true;
+    package = pkgs.unstable.code-cursor;
+    mutableExtensionsDir = true; # extensions installed from inside Cursor keep working
+    profiles.default.extensions = [
+      # The same theme Stylix builds for VS Code
+      (pkgs.runCommandLocal "stylix-cursor-theme"
+        {
+          vscodeExtUniqueId = "stylix.stylix";
+          vscodeExtPublisher = "stylix";
+          version = "0.0.0";
+          theme = builtins.toJSON (
+            import "${inputs.stylix}/modules/vscode/templates/theme.nix" config.lib.stylix.colors
+          );
+          passAsFile = [ "theme" ];
+        }
+        ''
+          dir=$out/share/vscode/extensions/$vscodeExtUniqueId
+          mkdir -p $dir/themes
+          ln -s ${inputs.stylix}/modules/vscode/package.json $dir/package.json
+          cp "$themePath" $dir/themes/stylix.json
+        ''
+      )
+    ];
+  };
+
+  # Cursor's colour theme for the active desktop theme (theme.cursorTheme in themes.nix).
+  # Changes only these two keys in settings.json; a file jq can't read is left as is.
+  home.activation.cursorColorTheme = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+    f="${config.xdg.configHome}/Cursor/User/settings.json"
+    if [ -f "$f" ]; then
+      tmp=$(mktemp)
+      if ${pkgs.jq}/bin/jq --indent 4 --arg t "${osConfig.theme.cursorTheme}" \
+          '.["workbench.colorTheme"] = $t | .["workbench.preferredDarkColorTheme"] = $t' \
+          "$f" > "$tmp" && ! cmp -s "$tmp" "$f"; then
+        run mv "$tmp" "$f"
+      else
+        rm -f "$tmp"
+      fi
+    fi
+  '';
 
   # ── Other Applications ───────────────
   home.packages = with pkgs; [

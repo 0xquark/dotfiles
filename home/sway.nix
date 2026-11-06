@@ -80,10 +80,10 @@
         outer = 4;
         top = -4; # windows sit 6px under the bar instead of 14px
       };
-      # Focused border: a burnt orange, softer than the bright accent (base0D)
+      # Focused border: a softer take on the theme's accent (set per theme in themes.nix)
       colors.focused = {
-        border = lib.mkForce "#b05e24";
-        childBorder = lib.mkForce "#b05e24";
+        border = lib.mkForce osConfig.theme.focusedBorder;
+        childBorder = lib.mkForce osConfig.theme.focusedBorder;
       };
       window = {
         titlebar = false;

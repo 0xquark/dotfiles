@@ -1,13 +1,5 @@
 { pkgs, inputs, ... }:
 
-let
-  # Unstable nixpkgs, used only where named below (allowUnfree for Cursor)
-  unstable = import inputs.nixpkgs-unstable {
-    system = pkgs.stdenv.hostPlatform.system;
-    config.allowUnfree = true;
-  };
-in
-
 {
   imports = [
     ./hardware-configuration.nix
@@ -72,8 +64,17 @@ in
   nix.settings.auto-optimise-store = true; # stores identical files once
   nixpkgs.config.allowUnfree = true;
 
-  # Newest Claude Code instead of the one in stable nixpkgs
-  nixpkgs.overlays = [ inputs.claude-code.overlays.default ];
+  nixpkgs.overlays = [
+    # Newest Claude Code instead of the one in stable nixpkgs
+    inputs.claude-code.overlays.default
+    # pkgs.unstable: unstable nixpkgs, for the few apps that need it (Cursor, in home/apps.nix)
+    (_final: prev: {
+      unstable = import inputs.nixpkgs-unstable {
+        system = prev.stdenv.hostPlatform.system;
+        config.allowUnfree = true;
+      };
+    })
+  ];
 
   # nh: nicer rebuilds, shows what changed, and cleans up old generations
   programs.nh = {
@@ -96,7 +97,6 @@ in
     neo
     hyfetch
     firefox-devedition
-    unstable.code-cursor
   ];
 
   # The NixOS version first installed here. Keep it as is, even after upgrading.

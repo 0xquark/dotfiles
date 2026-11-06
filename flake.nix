@@ -53,6 +53,7 @@
         modules = [
           ./hosts/framework/configuration.nix
           ./hosts/framework/theme.nix
+          ./hosts/framework/themes.nix # extra themes to switch to
           nixos-hardware.nixosModules.framework-intel-core-ultra-series3
           stylix.nixosModules.stylix
           home-manager.nixosModules.home-manager
