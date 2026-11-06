@@ -29,6 +29,8 @@ in
   # ── Sway ──────────────────────────────────────────
   programs.sway = {
     enable = true;
+    # SwayFX: Sway plus rounded corners, blur and shadows (effects in home/sway.nix)
+    package = pkgs.swayfx;
     wrapperFeatures.gtk = true;
     extraPackages = [ ]; # Home Manager installs tools on sway
   };

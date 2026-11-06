@@ -7,7 +7,7 @@
 {
   wayland.windowManager.sway = {
     enable = true;
-    package = null; # use the system Sway, the one SDDM lists
+    package = null; # use the system one: SwayFX, from desktop.nix
 
     extraConfig = ''
       # Lid closed: switch the laptop screen off; Sway moves its workspaces to the monitor
@@ -24,6 +24,20 @@
       workspace 7 output eDP-1 DP-1
       workspace 8 output eDP-1 DP-1
       workspace 9 output eDP-1 DP-1
+
+      # SwayFX effects: round corners, soft shadows, blur behind see-through windows
+      # (Ghostty is 92% opaque), and a light dim on windows you aren't using
+      corner_radius 4
+      shadows enable
+      shadow_blur_radius 20
+      shadow_color #000000A0
+      shadow_inactive_color #00000060
+      blur enable
+      blur_passes 1
+      blur_radius 3
+      default_dim_inactive 0.1
+      dim_inactive_colors.unfocused #000000FF
+
       # Three-finger swipe: next / previous workspace on this screen, Mac direction
       bindgesture swipe:3:left  workspace next_on_output
       bindgesture swipe:3:right workspace prev_on_output
