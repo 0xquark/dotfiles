@@ -19,3 +19,6 @@ id_*
 # Anything with name *.local or put in secrets/ stays private
 *.local
 secrets/
+
+# Notes kept out of the repo for now
+docs/

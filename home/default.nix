@@ -5,6 +5,7 @@
     ./apps.nix
     ./shell.nix
     ./bar.nix
+    ./windows.nix
   ];
 
   home.username = "drquark";

@@ -30,15 +30,37 @@ in
   # Media keys control the player you used most recently
   services.playerctld.enable = true;
 
-  # swayr: Mac-style window switching (remembers which windows you used last)
-  home.packages = [ pkgs.swayr ];
+  # swayr: Mac-style window switching (remembers which windows you used last).
+  # Its daemon runs as a service; menus open in fuzzel (windows.nix).
+  programs.swayr = {
+    enable = true;
+    systemd.enable = true;
+    settings = {
+      menu = {
+        executable = "fuzzel";
+        args = [
+          "--dmenu"
+          "--prompt={prompt}: "
+        ];
+      };
+      # Plain text: fuzzel shows markup as-is
+      format = {
+        window_format = "{urgency_start}{title}{urgency_end}  · {app_name} on {workspace_name}";
+        workspace_format = "Workspace {name} on {output_name}";
+        container_format = "Container [{layout}] on workspace {workspace_name}";
+        output_format = "Output {name}";
+        urgency_start = "! ";
+        urgency_end = "";
+        html_escape = false;
+      };
+    };
+  };
 
   # ── Sway's keys ─────────────────────────────────────
   wayland.windowManager.sway.config = {
     modifier = mod;
     terminal = "ghostty";
     menu = "vicinae toggle";
-    startup = [ { command = "swayrd"; } ]; # tracks the order you used windows in
 
     # mkOptionDefault ADDS these to Sway's built-in shortcuts instead of replacing them
     keybindings = lib.mkOptionDefault {
