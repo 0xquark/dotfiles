@@ -2,7 +2,7 @@
 
 It shows typing dots while Joi thinks, then types her reply out with small
 pauses after commas and sentences, then fades. Click it to close it early and hush her.
-Usage: joi-bubble "what you said"
+Usage: joi-bubble "what you said", or joi-bubble --type to type to her first
 """
 
 import json
@@ -20,8 +20,9 @@ import uuid
 import gi
 
 gi.require_version("Gtk", "3.0")
+gi.require_version("Gdk", "3.0")
 gi.require_version("GtkLayerShell", "0.1")
-from gi.repository import GLib, Gtk, GtkLayerShell  # noqa: E402
+from gi.repository import Gdk, GLib, Gtk, GtkLayerShell  # noqa: E402
 
 URL = os.environ["JOI_URL"]
 HEALTH = os.environ["JOI_HEALTH"].split()
@@ -38,6 +39,14 @@ BOTTOM = 38  # clears the pill rising out of the bar
 RISE = 10  # pixels the bubble slides up as it appears
 
 EMOJI = re.compile("[\U0001F000-\U0001FAFF☀-➿️‍]")
+
+
+def read_activity():
+    try:
+        with open(ACTIVITY) as f:
+            return f.read().strip()
+    except OSError:
+        return ""
 
 
 def set_activity(what):
@@ -142,16 +151,35 @@ class Bubble:
             }}
             .said {{ color: {os.environ["JOI_DIM"]}; font-size: 0.85em; }}
             .reply {{ color: {os.environ["JOI_FG"]}; }}
+            entry {{
+                background: transparent;
+                border: none;
+                box-shadow: none;
+                padding: 0;
+                min-height: 0;
+                color: {os.environ["JOI_FG"]};
+                caret-color: {os.environ["JOI_FG"]};
+            }}
         """.encode())
         Gtk.StyleContext.add_provider_for_screen(
             self.win.get_screen(), css, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
 
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=3)
         box.get_style_context().add_class("bubble")
-        self.said = self._label("said", said)
+        self.said = self._label("said", said or "")
         self.reply = self._label("reply", "")
         box.pack_start(self.said, False, False, 0)
         box.pack_start(self.reply, False, False, 0)
+
+        # Typing to her: a text box first, and the keyboard while it's open
+        self.entry = None
+        if said is None:
+            self.entry = Gtk.Entry()
+            self.entry.set_width_chars(36)
+            self.entry.connect("activate", self.submit)
+            self.entry.connect("key-press-event", self.on_key)
+            box.pack_start(self.entry, False, False, 0)
+            GtkLayerShell.set_keyboard_mode(self.win, GtkLayerShell.KeyboardMode.EXCLUSIVE)
 
         events = Gtk.EventBox()
         events.add(box)
@@ -165,11 +193,42 @@ class Bubble:
         self.dots = 0
         self.note = ""
         self.appear = 0.0
-        self.started = time.monotonic()
         GLib.timeout_add(16, self.slide_in)
+        if self.entry:
+            hint = "to Joi · Enter sends, Esc cancels"
+            self.said.set_text(hint)
+            self.said.set_width_chars(len(hint))
+            self.reply.hide()
+            self.entry.grab_focus()
+            set_activity("reading")
+        else:
+            self.start(said)
+
+    def start(self, said):
+        self.started = time.monotonic()
         GLib.timeout_add(350, self.tick_dots)
         set_activity("thinking")
         threading.Thread(target=self.fetch, args=(said,), daemon=True).start()
+
+    def submit(self, entry):
+        said = entry.get_text().strip()
+        if not said:
+            self.close()
+            return
+        # The typed text becomes the dim line, like a spoken question
+        entry.hide()
+        GtkLayerShell.set_keyboard_mode(self.win, GtkLayerShell.KeyboardMode.NONE)
+        self.said.set_text(said)
+        self.said.set_width_chars(min(len(said), WIDTH))
+        self.said.show()
+        self.reply.show()
+        self.start(said)
+
+    def on_key(self, _widget, event):
+        if event.keyval == Gdk.KEY_Escape:
+            self.close()
+            return True
+        return False
 
     def _label(self, cls, text):
         label = Gtk.Label(label=text, xalign=0)
@@ -206,7 +265,8 @@ class Bubble:
         if self.text is not None:
             return False
         self.dots = self.dots % 3 + 1
-        self.reply.set_text(self.note + "•" * self.dots)
+        note = self.note or ("looking " if read_activity() == "looking" else "")
+        self.reply.set_text(note + "•" * self.dots)
         return True
 
     def begin(self, text):
@@ -261,7 +321,7 @@ def main():
     with open(PIDFILE, "w") as f:
         f.write(str(os.getpid()))
     signal.signal(signal.SIGTERM, lambda *_: os._exit(0))
-    Bubble(" ".join(sys.argv[1:]))
+    Bubble(None if sys.argv[1:] == ["--type"] else " ".join(sys.argv[1:]))
     try:
         Gtk.main()
     finally:

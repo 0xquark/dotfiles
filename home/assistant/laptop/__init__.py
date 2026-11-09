@@ -8,6 +8,8 @@ writes shell commands.
 import base64
 import json
 import os
+import shlex
+import shutil
 import subprocess
 import urllib.request
 
@@ -19,8 +21,29 @@ def _run(*cmd):
 
 def _session(*cmd):
     # A transient user unit gets the desktop session's environment (Wayland,
-    # D-Bus), which the gateway, started before Sway, lacks.
+    # D-Bus), which the gateway, started before Sway, lacks. Its PATH is the
+    # session's though, so the commands go by their full path from ours.
     return _run("systemd-run", "--user", "--collect", "--quiet", *cmd)
+
+
+STATE = os.path.join(os.environ.get("XDG_RUNTIME_DIR", "/tmp"), "joi")
+
+
+def _event(name):
+    # Her face in the bar reacts to these
+    try:
+        with open(os.path.join(STATE, "event"), "w") as f:
+            f.write(name)
+    except OSError:
+        pass
+
+
+def _activity(what):
+    try:
+        with open(os.path.join(STATE, "activity"), "w") as f:
+            f.write(what)
+    except OSError:
+        pass
 
 
 def _ok(**fields):
@@ -28,6 +51,7 @@ def _ok(**fields):
 
 
 def _err(msg):
+    _event("oops")
     return json.dumps({"ok": False, "error": msg})
 
 
@@ -75,7 +99,7 @@ def open_link(args, **kwargs):
     if not url.startswith(("http://", "https://")):
         url = "https://" + url
     try:
-        code, out = _session("xdg-open", url)
+        code, out = _session(shutil.which("xdg-open"), url)
         return _ok(opened=url) if code == 0 else _err(out)
     except Exception as e:
         return _err(str(e))
@@ -90,8 +114,10 @@ def remind(args, **kwargs):
     if minutes <= 0:
         return _err("minutes must be more than 0")
     try:
-        code, out = _session(f"--on-active={round(minutes * 60)}s",
-                             "notify-send", "--app-name=Joi", "Joi", text)
+        # Show it, and make her face ring the alarm
+        ring = (f"{shutil.which('notify-send')} --app-name=Joi Joi {shlex.quote(text)}; "
+                f"echo alarm > {shlex.quote(os.path.join(STATE, 'event'))}")
+        code, out = _session(f"--on-active={round(minutes * 60)}s", shutil.which("sh"), "-c", ring)
         return _ok(reminder=text, in_minutes=minutes) if code == 0 else _err(out)
     except Exception as e:
         return _err(str(e))
@@ -126,8 +152,12 @@ def _see(image, mime, question):
     url = _ctx.get_config("model_url", "http://127.0.0.1:8091/v1/chat/completions")
     req = urllib.request.Request(url, json.dumps(body).encode(),
                                  {"Content-Type": "application/json"})
-    with urllib.request.urlopen(req, timeout=120) as r:
-        return json.load(r)["choices"][0]["message"]["content"]
+    _activity("looking")
+    try:
+        with urllib.request.urlopen(req, timeout=120) as r:
+            return json.load(r)["choices"][0]["message"]["content"]
+    finally:
+        _activity("thinking")
 
 
 def _focused_window(tree):

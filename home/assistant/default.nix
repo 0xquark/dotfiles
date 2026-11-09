@@ -57,12 +57,16 @@ let
     runtimeInputs = [ pkgs.libnotify ];
     text = ''
       mkdir -p "$(dirname ${mutedFile})"
+      event="$XDG_RUNTIME_DIR/joi/event"
+      mkdir -p "$(dirname "$event")"
       if [ -e ${mutedFile} ]; then
         rm ${mutedFile}
+        echo unmuted > "$event"
         notify-send --app-name=Joi -t 2000 Joi "I'll talk again"
       else
         touch ${mutedFile}
         ${hush}
+        echo muted > "$event"
         notify-send --app-name=Joi -t 2000 Joi "I'll keep quiet"
       fi
     '';
@@ -189,6 +193,12 @@ let
           # Nothing was said, so there's no bubble to finish the turn
           if grep -qx thinking "$activity"; then echo ready > "$activity"; fi
           ;;
+        type)
+          # Type to her instead: the bubble opens with a text box
+          systemctl --user is-active -q hermes-agent || ${joiPower}/bin/joi-power on
+          ${hush}
+          exec ${bubble}/bin/joi-bubble --type
+          ;;
       esac
     '';
   };
@@ -226,7 +236,7 @@ let
 
   # Her face in the bar
   face = pkgs.writeShellScriptBin "joi-face" ''
-    export PATH=${pkgs.systemd}/bin:${pkgs.playerctl}/bin:$PATH
+    export PATH=${pkgs.systemd}/bin:${pkgs.playerctl}/bin:${pkgs.wl-clipboard}/bin:$PATH
     export JOI_HEALTH="${health}"
     export JOI_MUTED_FILE="${mutedFile}"
     exec ${pkgs.python3}/bin/python3 ${./face.py}
@@ -389,12 +399,13 @@ in
   ];
 
   # Joi lives at the right end of the bottom bar: click to switch her on and off,
-  # right-click to mute her voice
+  # right-click to mute her voice, middle-click to type to her
   programs.waybar.settings.stats."custom/joi" = {
     exec = "${face}/bin/joi-face";
     return-type = "json";
     on-click = "${joiPower}/bin/joi-power toggle";
     on-click-right = "${joiMute}/bin/joi-mute";
+    on-click-middle = "${joiVoice}/bin/joi-voice type";
   };
   programs.waybar.style = lib.mkAfter ''
     /* Room at the screen edge for the note; the pill is placed to rise
@@ -419,6 +430,22 @@ in
     #custom-joi.music {
       color: @base0C;
     }
+    #custom-joi.reading,
+    #custom-joi.looking {
+      color: @base0D;
+    }
+    #custom-joi.snap {
+      color: @base0A;
+    }
+    #custom-joi.muted {
+      color: @base03;
+    }
+    #custom-joi.alarm {
+      color: @base08;
+    }
+    #custom-joi.oops {
+      color: @base09;
+    }
     #custom-joi.waking,
     #custom-joi.thinking {
       animation: joi-pulse 0.9s ease-in-out infinite alternate;
@@ -434,5 +461,7 @@ in
   wayland.windowManager.sway.config.keybindings = lib.mkOptionDefault {
     "--no-repeat ${hyper}+space" = "exec ${joiVoice}/bin/joi-voice start";
     "--release ${hyper}+space" = "exec ${joiVoice}/bin/joi-voice stop";
+    # Hyper + Return: type to her instead
+    "${hyper}+Return" = "exec ${joiVoice}/bin/joi-voice type";
   };
 }
