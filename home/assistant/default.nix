@@ -235,8 +235,12 @@ in
     };
   };
 
-  # The gateway also runs only while Joi is on
-  systemd.user.services.hermes-agent.Unit.ConditionPathExists = awakeFile;
+  # The gateway also runs only while Joi is on. It exits with 1 when stopped,
+  # so that counts as a clean stop; Restart=always still covers real crashes.
+  systemd.user.services.hermes-agent = {
+    Unit.ConditionPathExists = awakeFile;
+    Service.SuccessExitStatus = "1";
+  };
 
   programs.hermes-agent.enable = true;
 
