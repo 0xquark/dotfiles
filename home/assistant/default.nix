@@ -51,6 +51,12 @@ let
   # Stops her mid-sentence
   hush = "${pkgs.socat}/bin/socat -u /dev/null \"UNIX-CONNECT:${speakerSocket}\" 2>/dev/null || true";
 
+  # go_to_sleep: switch off in a few seconds, once her goodnight is out
+  joiSleepSoon = pkgs.writeShellScript "joi-sleep-soon" ''
+    sleep 10
+    exec ${joiPower}/bin/joi-power "$@"
+  '';
+
   # Right-click her face: she keeps typing, but stops speaking
   joiMute = pkgs.writeShellApplication {
     name = "joi-mute";
@@ -59,8 +65,13 @@ let
       mkdir -p "$(dirname ${mutedFile})"
       event="$XDG_RUNTIME_DIR/joi/event"
       mkdir -p "$(dirname "$event")"
-      if [ -e ${mutedFile} ]; then
-        rm ${mutedFile}
+      # joi-mute on|off|toggle (toggle when nothing's given)
+      want=''${1:-toggle}
+      if [ "$want" = toggle ]; then
+        if [ -e ${mutedFile} ]; then want=off; else want=on; fi
+      fi
+      if [ "$want" = off ]; then
+        rm -f ${mutedFile}
         echo unmuted > "$event"
         notify-send --app-name=Joi -t 2000 Joi "I'll talk again"
       else
@@ -132,7 +143,15 @@ let
         "spotify"
       ];
       # Where look_at_screen and look_at_clipboard send pictures
-      plugins.entries.laptop.settings.model_url = "http://127.0.0.1:${toString modelPort}/v1/chat/completions";
+      plugins.entries.laptop.settings = {
+        model_url = "http://127.0.0.1:${toString modelPort}/v1/chat/completions";
+        # hand_off and check_handoffs
+        handoff_command = "${handoff}/bin/joi-handoff";
+        handoffs_folder = handoffs;
+        # mute_yourself, unmute_yourself and go_to_sleep
+        mute_command = "${joiMute}/bin/joi-mute";
+        power_command_later = "${joiSleepSoon}";
+      };
       # Naming each chat costs a second model call per question
       auxiliary.title_generation.enabled = false;
       # She saves things as K mentions them; a review every few turns would hold up the next answer
@@ -178,9 +197,11 @@ let
     name = "joi-voice";
     text = ''
       activity="$XDG_RUNTIME_DIR/joi/activity"
+      pressed="$XDG_RUNTIME_DIR/joi/pressed"
       mkdir -p "$XDG_RUNTIME_DIR/joi"
       case "''${1:-}" in
         start)
+          date +%s%3N > "$pressed"
           # Talking to her wakes her up; the bubble waits for the model
           systemctl --user is-active -q hermes-agent || ${joiPower}/bin/joi-power on
           ${hush}
@@ -188,10 +209,21 @@ let
           exec dictate start joi
           ;;
         stop)
+          held=$(( $(date +%s%3N) - $(cat "$pressed" 2>/dev/null || echo 0) ))
           echo thinking > "$activity"
           dictate stop ${bubble}/bin/joi-bubble
+          # A quick tap (dictate drops those too) opens the box to type to her
+          if [ "$held" -lt 300 ]; then
+            exec ${bubble}/bin/joi-bubble --type
+          fi
           # Nothing was said, so there's no bubble to finish the turn
           if grep -qx thinking "$activity"; then echo ready > "$activity"; fi
+          ;;
+        hush)
+          # Stop her now: no more talking, and the bubble goes
+          ${hush}
+          kill "$(cat "$XDG_RUNTIME_DIR/joi/bubble.pid" 2>/dev/null)" 2>/dev/null || true
+          echo ready > "$activity"
           ;;
         type)
           # Type to her instead: the bubble opens with a text box
@@ -234,11 +266,24 @@ let
     '';
   };
 
+  # Jobs Joi hands to Claude or Darlene, and what came back
+  handoffs = "${config.xdg.stateHome}/joi/handoffs";
+  handoff = pkgs.writeShellScriptBin "joi-handoff" ''
+    export PATH=${pkgs.libnotify}/bin:$PATH
+    export JOI_STATE="${config.xdg.stateHome}/joi"
+    export JOI_CLAUDE="${pkgs.claude-code}/bin/claude"
+    export JOI_DARLENE_URL="http://127.0.0.1:${toString gatewayPort}/p/darlene/v1/chat/completions"
+    export JOI_KEY_FILE="${keyFile}"
+    export JOI_MUTED_FILE="${mutedFile}"
+    exec ${pkgs.python3}/bin/python3 ${./handoff.py} "$@"
+  '';
+
   # Her face in the bar
   face = pkgs.writeShellScriptBin "joi-face" ''
     export PATH=${pkgs.systemd}/bin:${pkgs.playerctl}/bin:${pkgs.wl-clipboard}/bin:$PATH
     export JOI_HEALTH="${health}"
     export JOI_MUTED_FILE="${mutedFile}"
+    export JOI_HANDOFFS="${handoffs}"
     exec ${pkgs.python3}/bin/python3 ${./face.py}
   '';
 
@@ -291,11 +336,12 @@ in
         "on"
         "--n-gpu-layers"
         "99"
-        # Hermes wants at least 64k of context
+        # Two conversations at once, so a job handed to Darlene doesn't hold Joi up.
+        # Hermes wants at least 64k of context for each.
         "--ctx-size"
-        "65536"
+        "131072"
         "--parallel"
-        "1"
+        "2"
         "--cache-type-k"
         "q8_0"
         "--cache-type-v"
@@ -376,7 +422,8 @@ in
     ];
   };
 
-  # Profile folders, the API key (made once), and the same key for Joi's profile
+  # Profile folders, the API key (made once), and the same key in each profile,
+  # which Hermes needs to answer at /p/<name>
   home.activation.hermesProfiles =
     lib.hm.dag.entryBetween [ "hermesAgentSetup" ] [ "writeBoundary" ]
       "run ${pkgs.writeShellScript "hermes-profiles" ''
@@ -386,11 +433,46 @@ in
         if [ ! -s ${keyFile} ]; then
           echo "API_SERVER_KEY=$(${pkgs.openssl}/bin/openssl rand -hex 24)" > ${keyFile}
         fi
-        # Add the key to Joi's .env, keeping anything Hermes wrote there
-        if ! grep -qs '^API_SERVER_KEY=' ${home}/profiles/joi/.env; then
-          cat ${keyFile} >> ${home}/profiles/joi/.env
-        fi
+        # Add the key to each .env, keeping anything Hermes wrote there
+        for profile in ${lib.concatStringsSep " " (builtins.attrNames profiles)}; do
+          if ! grep -qs '^API_SERVER_KEY=' "${home}/profiles/$profile/.env"; then
+            cat ${keyFile} >> "${home}/profiles/$profile/.env"
+          fi
+        done
       ''}";
+
+  # The same controls in Vicinae, or any app launcher
+  xdg.desktopEntries =
+    lib.mapAttrs
+      (name: e: {
+        name = "Joi: ${e.title}";
+        comment = e.comment;
+        exec = e.exec;
+        icon = "audio-input-microphone";
+        categories = [ "Utility" ];
+      })
+      {
+        joi-type = {
+          title = "type to her";
+          comment = "Opens the bubble to type a message to Joi";
+          exec = "${joiVoice}/bin/joi-voice type";
+        };
+        joi-mute = {
+          title = "mute or unmute";
+          comment = "Joi keeps typing but stops speaking, or speaks again";
+          exec = "${joiMute}/bin/joi-mute";
+        };
+        joi-power = {
+          title = "wake up or sleep";
+          comment = "Starts or stops Joi's model, voice and gateway";
+          exec = "${joiPower}/bin/joi-power toggle";
+        };
+        joi-hush = {
+          title = "stop talking";
+          comment = "Stops Joi mid-sentence and closes her bubble";
+          exec = "${joiVoice}/bin/joi-voice hush";
+        };
+      };
 
   home.packages = characterCommands ++ [
     bubble
@@ -458,10 +540,15 @@ in
   '';
 
   # Hold Hyper + Space and talk to Joi. Letting go of either key sends it.
+  # A quick tap opens the box to type to her instead.
   wayland.windowManager.sway.config.keybindings = lib.mkOptionDefault {
     "--no-repeat ${hyper}+space" = "exec ${joiVoice}/bin/joi-voice start";
     "--release ${hyper}+space" = "exec ${joiVoice}/bin/joi-voice stop";
-    # Hyper + Return: type to her instead
+    # Tap Hyper + Space to type to her instead. These do the same:
     "${hyper}+Return" = "exec ${joiVoice}/bin/joi-voice type";
+    # Mute or unmute her, wake her or put her to sleep, and stop her mid-sentence
+    "${hyper}+m" = "exec ${joiMute}/bin/joi-mute";
+    "${hyper}+j" = "exec ${joiPower}/bin/joi-power toggle";
+    "${hyper}+Escape" = "exec ${joiVoice}/bin/joi-voice hush";
   };
 }

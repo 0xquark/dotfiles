@@ -1,4 +1,4 @@
 name: laptop
 version: 1.0.0
 description: Spotify, music, volume, links, reminders, the screen and the clipboard
-provides_tools: [play_music, pause_music, resume_music, next_song, previous_song, now_playing, volume, open_link, remind, look_at_screen, look_at_clipboard]
+provides_tools: [play_music, pause_music, resume_music, next_song, previous_song, now_playing, volume, open_link, remind, look_at_screen, look_at_clipboard, hand_off, check_handoffs, mute_yourself, unmute_yourself, go_to_sleep]

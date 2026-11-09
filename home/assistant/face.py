@@ -16,7 +16,7 @@ switched off: a yawn, then asleep
 
 Reactions: a camera flash when a screenshot lands in the clipboard (one eye
 opens if she's asleep), a zipped mouth when muted, an alarm for a reminder,
-and a sheepish face when a tool fails.
+a sheepish face when a tool fails, and a cheer when Claude or Darlene finishes.
 """
 
 import json
@@ -33,6 +33,7 @@ ACTIVITY = os.path.join(STATE, "activity")
 EVENT = os.path.join(STATE, "event")  # one-off reactions, written by the tools
 HEALTH = os.environ["JOI_HEALTH"].split()
 MUTED = os.environ["JOI_MUTED_FILE"]
+HANDOFFS = os.environ["JOI_HANDOFFS"]  # jobs she gave Claude or Darlene
 STALE = 120  # seconds before an unfinished listening or thinking counts as over
 NOTE = "\U000f075a"  # a music note from the Nerd Font, one character wide
 CAMERA = "\U000f0100"  # Nerd Font icons, also one character wide
@@ -63,6 +64,7 @@ REACTIONS = {
     "unmuted": ([(" (◕▿◕) ", 1.2)], "happy"),
     "alarm": ([("!(◕□◕)!", 0.3), (" (◕□◕) ", 0.3)] * 3, "alarm"),
     "oops": ([(" (◕_◕;)", 1.6)], "oops"),
+    "handoff": ([(" (◕o◕)!", 0.5), ("⋆(^‿^)⋆", 1.4)], "happy"),  # a handed-off job came back
 }
 QUIRKS = [
     ([(" (◕‿-) ", 0.6)], "awake"),  # wink
@@ -72,14 +74,14 @@ QUIRKS = [
 ]
 
 TIPS = {
-    "asleep": "Joi is asleep. Click to wake her.",
+    "asleep": "Joi is asleep. Hyper+J or Hyper+Space wakes her.",
     "waking": "Joi is waking up…",
-    "awake": "Joi is here. Hold Hyper+Space to talk. Click to put her to sleep.",
-    "music": "Joi is listening to your music. Hold Hyper+Space to talk.",
+    "awake": "Joi is here. Hold Hyper+Space to talk, tap it to type. Hyper+J puts her to sleep.",
+    "music": "Joi is listening to your music. Hold Hyper+Space to talk, tap it to type.",
     "listening": "Joi is listening",
     "thinking": "Joi is thinking",
     "replying": "Joi is replying",
-    "happy": "Joi is here. Hold Hyper+Space to talk.",
+    "happy": "Joi is here. Hold Hyper+Space to talk, tap it to type.",
     "looking": "Joi is looking",
     "reading": "Joi is reading what you type",
     "snap": "Nice shot",
@@ -110,6 +112,23 @@ def music_playing():
     return "Playing" in out
 
 
+def working_on():
+    try:
+        names = sorted(n for n in os.listdir(HANDOFFS) if n.endswith(".running"))
+    except OSError:
+        return []
+    jobs = []
+    for name in names:
+        try:
+            with open(os.path.join(HANDOFFS, name)) as f:
+                task = f.read().strip()
+        except OSError:
+            continue
+        who = name.rsplit("-", 1)[-1].split(".")[0].title()
+        jobs.append(f"{who} is working on: {task[:60]}{'…' if len(task) > 60 else ''}")
+    return jobs
+
+
 def activity():
     try:
         st = os.stat(ACTIVITY)
@@ -136,6 +155,7 @@ class Face:
     def __init__(self):
         self.power = "asleep"  # asleep, waking or awake, from the services
         self.music = False
+        self.jobs = []
         self.shown = None  # the state shown last tick, to spot transitions
         self.moment = None  # (steps, class, started, protected)
         now = time.monotonic()
@@ -158,6 +178,7 @@ class Face:
         elif self.power != "awake":
             self.power = "awake" if healthy() else "waking"
         self.music = self.power == "awake" and music_playing()
+        self.jobs = working_on()
 
     def frame(self, now):
         state = self.power
@@ -247,7 +268,9 @@ def main():
         text, cls = face.frame(now)
         tip = TIPS[cls]
         if cls not in ("asleep", "waking"):
-            tip += " Right-click to let her talk." if os.path.exists(MUTED) else " Right-click to mute her."
+            tip += " Hyper+M lets her talk." if os.path.exists(MUTED) else " Hyper+M mutes her."
+        if face.jobs:
+            tip += "\n" + "\n".join(face.jobs)
         out = json.dumps({"text": text, "tooltip": tip, "class": cls})
         if out != last:
             print(out, flush=True)

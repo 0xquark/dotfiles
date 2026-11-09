@@ -211,6 +211,58 @@ def look_at_clipboard(args, **kwargs):
         return _err(str(e))
 
 
+def hand_off(args, **kwargs):
+    who = str(args.get("to", "")).strip().lower()
+    task = str(args.get("task", "")).strip()
+    if who not in ("claude", "darlene"):
+        return _err("hand off to claude or darlene")
+    if not task:
+        return _err("say what the task is")
+    # Its own transient unit, so it runs on after this turn and survives the gateway
+    code, out = _session(_ctx.get_config("handoff_command"), who, task)
+    if code != 0:
+        return _err(out or "couldn't start it")
+    return _ok(started=f"{who.title()} is working on it in the background; K gets a "
+                       "notification when it's done")
+
+
+def check_handoffs(args, **kwargs):
+    folder = _ctx.get_config("handoffs_folder")
+    try:
+        names = sorted(os.listdir(folder), reverse=True)
+    except OSError:
+        return _ok(running=[], finished=[])
+    running, finished = [], []
+    for name in names:
+        path = os.path.join(folder, name)
+        who = name.rsplit("-", 1)[-1].split(".")[0].title()
+        with open(path) as f:
+            text = f.read()
+        if name.endswith(".running"):
+            running.append({"who": who, "task": text})
+        elif name.endswith(".md") and len(finished) < 3:
+            finished.append({"who": who, "file": path, "answer": text[:1500]})
+    return _ok(running=running, finished=finished)
+
+
+def _myself(setting, *args):
+    code, out = _session(_ctx.get_config(setting), *args)
+    return _ok(done=True) if code == 0 else _err(out or "couldn't do it")
+
+
+def mute_yourself(args, **kwargs):
+    return _myself("mute_command", "on")
+
+
+def unmute_yourself(args, **kwargs):
+    return _myself("mute_command", "off")
+
+
+def go_to_sleep(args, **kwargs):
+    # Late enough that her goodnight still gets typed and said
+    return _myself("power_command_later", "off")
+
+
 _ctx = None  # set in register(), for the plugin's settings and the Spotify plugin's tools
 
 
@@ -310,3 +362,13 @@ def register(ctx):
          look_at_screen, question, ["question"])
     tool("look_at_clipboard", "Look at what K copied: text, or an image like a screenshot.",
          look_at_clipboard, question, ["question"])
+    tool("hand_off", "Hand a bigger job to Claude (research, code, explaining things) or "
+         "Darlene (the laptop, NixOS, the terminal). It runs in the background.", hand_off,
+         {"to": {"type": "string", "enum": ["claude", "darlene"]},
+          "task": {"type": "string", "description": "the whole task, in K's words, with any details"}},
+         ["to", "task"])
+    tool("check_handoffs", "See which handed-off jobs are still running, and what came back.",
+         check_handoffs)
+    tool("mute_yourself", "Stop speaking out loud; keep answering in text.", mute_yourself)
+    tool("unmute_yourself", "Speak out loud again.", unmute_yourself)
+    tool("go_to_sleep", "Switch yourself off for now, after saying goodnight.", go_to_sleep)
