@@ -24,6 +24,7 @@ import urllib.request
 STATE = os.path.join(os.environ.get("XDG_RUNTIME_DIR", "/tmp"), "joi")
 ACTIVITY = os.path.join(STATE, "activity")
 HEALTH = os.environ["JOI_HEALTH"].split()
+MUTED = os.environ["JOI_MUTED_FILE"]
 STALE = 120  # seconds before an unfinished listening or thinking counts as over
 NOTE = "\U000f075a"  # a music note from the Nerd Font, one character wide
 
@@ -176,7 +177,10 @@ def main():
             checked = now
             face.check_services()
         text, cls = face.frame(now)
-        out = json.dumps({"text": text, "tooltip": TIPS[cls], "class": cls})
+        tip = TIPS[cls]
+        if cls not in ("asleep", "waking"):
+            tip += " Right-click to let her talk." if os.path.exists(MUTED) else " Right-click to mute her."
+        out = json.dumps({"text": text, "tooltip": tip, "class": cls})
         if out != last:
             print(out, flush=True)
             last = out

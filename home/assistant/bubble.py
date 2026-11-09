@@ -1,7 +1,7 @@
 """A chat bubble above Joi's corner of the bar.
 
 It shows typing dots while Joi thinks, then types her reply out with small
-pauses after commas and sentences, then fades. Click it to close it early.
+pauses after commas and sentences, then fades. Click it to close it early and hush her.
 Usage: joi-bubble "what you said"
 """
 
@@ -10,6 +10,7 @@ import os
 import random
 import re
 import signal
+import socket
 import sys
 import threading
 import time
@@ -29,7 +30,9 @@ STATE = os.path.join(os.environ.get("XDG_RUNTIME_DIR", "/tmp"), "joi")
 SESSION = os.path.join(STATE, "conversation.json")
 ACTIVITY = os.path.join(STATE, "activity")  # read by the face in the bar
 PIDFILE = os.path.join(STATE, "bubble.pid")
-FRESH = 5 * 60  # seconds a conversation stays open between questions
+SPEAKER = os.path.join(STATE, "speaker.sock")
+MUTED = os.environ["JOI_MUTED_FILE"]  # she only types while this exists
+FRESH = 30 * 60  # seconds a conversation stays open between questions
 WIDTH = 48  # characters per line, at most
 BOTTOM = 38  # clears the pill rising out of the bar
 RISE = 10  # pixels the bubble slides up as it appears
@@ -43,6 +46,18 @@ def set_activity(what):
             f.write(what)
     except OSError:
         pass
+
+
+def say(text):
+    # Hand the reply to joi-speaker; an empty text hushes her
+    if text and os.path.exists(MUTED):
+        return
+    try:
+        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as s:
+            s.connect(SPEAKER)
+            s.sendall(text.encode())
+    except OSError:
+        pass  # no voice running, the bubble is enough
 
 
 def humanize(text):
@@ -140,7 +155,7 @@ class Bubble:
 
         events = Gtk.EventBox()
         events.add(box)
-        events.connect("button-press-event", lambda *_: Gtk.main_quit())
+        events.connect("button-press-event", self.close)
         self.win.add(events)
         self.win.set_opacity(0)
         self.win.show_all()
@@ -200,8 +215,13 @@ class Bubble:
         # Size the bubble for the whole reply, so it keeps still while typing
         self.reply.set_width_chars(min(len(text), WIDTH))
         self.reply.set_text("")
+        say(text)
         self.type_next()
         return False
+
+    def close(self, *_):
+        say("")
+        Gtk.main_quit()
 
     def type_next(self):
         self.shown += 1
