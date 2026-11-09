@@ -74,6 +74,12 @@ let
     sha256 = "190ixxlzpl8012kkhfb02f9nzns9c0a22n25c8z4csszzy37kzh0";
   };
 
+  # Its eyes: lets the same model read images, for the screen and the clipboard
+  vision = pkgs.fetchurl {
+    url = "https://huggingface.co/unsloth/Qwen3.5-4B-GGUF/resolve/main/mmproj-F16.gguf";
+    sha256 = "0r7qj4ld202sjb7ggf82xvmsdzp1nywwbjdh1fb98603ip7yv26d";
+  };
+
   # The official Spotify plugin: login, and the Web API calls behind Joi's play_music
   officialPlugins = pkgs.fetchFromGitHub {
     owner = "NousResearch";
@@ -121,6 +127,8 @@ let
         "laptop"
         "spotify"
       ];
+      # Where look_at_screen and look_at_clipboard send pictures
+      plugins.entries.laptop.settings.model_url = "http://127.0.0.1:${toString modelPort}/v1/chat/completions";
       # Naming each chat costs a second model call per question
       auxiliary.title_generation.enabled = false;
       # She saves things as K mentions them; a review every few turns would hold up the next answer
@@ -257,6 +265,11 @@ in
         "${pkgs.unstable.llama-cpp-vulkan}/bin/llama-server"
         "--model"
         model
+        "--mmproj"
+        vision
+        # A full-resolution screenshot would be ~5000 tokens; this keeps a look under ~10s
+        "--image-max-tokens"
+        "1280"
         "--alias"
         "local"
         "--host"
@@ -347,6 +360,9 @@ in
       pkgs.libnotify
       pkgs.xdg-utils
       pkgs.systemd
+      pkgs.grim
+      pkgs.wl-clipboard
+      pkgs.sway
     ];
   };
 

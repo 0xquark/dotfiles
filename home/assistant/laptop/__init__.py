@@ -1,11 +1,15 @@
-"""Named tools for the laptop: music, volume, links and reminders.
+"""Named tools for the laptop: music, volume, links, reminders, and eyes on
+the screen and the clipboard.
 
 A small model calls one plainly named tool per job much more reliably than it
 writes shell commands.
 """
 
+import base64
 import json
+import os
 import subprocess
+import urllib.request
 
 
 def _run(*cmd):
@@ -93,7 +97,91 @@ def remind(args, **kwargs):
         return _err(str(e))
 
 
-_ctx = None  # set in register(), for calling the Spotify plugin's tools
+def _desktop_env():
+    # Sway's session variables, which the gateway, started before Sway, lacks
+    env = dict(os.environ)
+    out = subprocess.run(["systemctl", "--user", "show-environment"],
+                         capture_output=True, text=True).stdout
+    for line in out.splitlines():
+        key, _, value = line.partition("=")
+        if key in ("WAYLAND_DISPLAY", "SWAYSOCK", "XDG_RUNTIME_DIR"):
+            env[key] = value
+    return env
+
+
+def _see(image, mime, question):
+    # Ask the same local model, with its vision part, about the picture
+    body = {
+        "messages": [
+            {"role": "system", "content": "This is a picture from K's laptop: a window, or something "
+             "K copied. Say what it shows and answer the question in two or three sentences. "
+             "Quote text exactly when it matters."},
+            {"role": "user", "content": [
+                {"type": "image_url", "image_url": {
+                    "url": f"data:{mime};base64," + base64.b64encode(image).decode()}},
+                {"type": "text", "text": question or "What is this?"}]},
+        ],
+        "max_tokens": 200,
+    }
+    url = _ctx.get_config("model_url", "http://127.0.0.1:8091/v1/chat/completions")
+    req = urllib.request.Request(url, json.dumps(body).encode(),
+                                 {"Content-Type": "application/json"})
+    with urllib.request.urlopen(req, timeout=120) as r:
+        return json.load(r)["choices"][0]["message"]["content"]
+
+
+def _focused_window(tree):
+    if tree.get("focused") and tree.get("type") == "con":
+        return tree
+    for child in tree.get("nodes", []) + tree.get("floating_nodes", []):
+        found = _focused_window(child)
+        if found:
+            return found
+    return None
+
+
+def look_at_screen(args, **kwargs):
+    question = str(args.get("question", "")).strip()
+    env = _desktop_env()
+    try:
+        tree = json.loads(subprocess.run(["swaymsg", "-t", "get_tree"], env=env,
+                                         capture_output=True, text=True).stdout)
+        window = _focused_window(tree)
+        # The focused window, or the whole screen when nothing is focused
+        cmd = ["grim", "-t", "jpeg", "-q", "85"]
+        if window:
+            r = window["rect"]
+            cmd += ["-g", f"{r['x']},{r['y']} {r['width']}x{r['height']}"]
+        shot = subprocess.run(cmd + ["-"], env=env, capture_output=True, timeout=10)
+        if shot.returncode != 0:
+            return _err(shot.stderr.decode().strip() or "couldn't take a screenshot")
+        return _ok(window=(window or {}).get("name") or "the screen",
+                   seen=_see(shot.stdout, "image/jpeg", question))
+    except Exception as e:
+        return _err(str(e))
+
+
+def look_at_clipboard(args, **kwargs):
+    question = str(args.get("question", "")).strip()
+    env = _desktop_env()
+    try:
+        types = subprocess.run(["wl-paste", "--list-types"], env=env,
+                               capture_output=True, text=True, timeout=5).stdout.split()
+        image = next((t for t in types if t in ("image/png", "image/jpeg")), None)
+        if image:
+            data = subprocess.run(["wl-paste", "--type", image], env=env,
+                                  capture_output=True, timeout=10).stdout
+            return _ok(kind="image", seen=_see(data, image, question))
+        if any(t.startswith("text/") or t in ("UTF8_STRING", "STRING") for t in types):
+            text = subprocess.run(["wl-paste", "--no-newline"], env=env,
+                                  capture_output=True, text=True, timeout=5).stdout
+            return _ok(kind="text", text=text[:6000], cut=len(text) > 6000)
+        return _err("the clipboard is empty")
+    except Exception as e:
+        return _err(str(e))
+
+
+_ctx = None  # set in register(), for the plugin's settings and the Spotify plugin's tools
 
 
 def _spotify(tool, args):
@@ -186,3 +274,9 @@ def register(ctx):
          {"url": {"type": "string"}}, ["url"])
     tool("remind", "Show a reminder notification after some minutes.", remind,
          {"minutes": {"type": "number"}, "text": {"type": "string"}}, ["minutes", "text"])
+    question = {"question": {"type": "string",
+                             "description": "what K wants to know, like 'what does this error mean'"}}
+    tool("look_at_screen", "Look at the window K is looking at right now.",
+         look_at_screen, question, ["question"])
+    tool("look_at_clipboard", "Look at what K copied: text, or an image like a screenshot.",
+         look_at_clipboard, question, ["question"])
