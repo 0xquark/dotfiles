@@ -31,6 +31,9 @@
       url = "github:sadjow/claude-code-nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    # Hermes, the agent behind the voice assistant. It keeps its own nixpkgs,
+    # since its Python set is locked against it.
+    hermes-agent.url = "github:NousResearch/hermes-agent";
     # Weekly index of every program in nixpkgs, for comma and "command not found"
     nix-index-database = {
       url = "github:nix-community/nix-index-database";

@@ -188,6 +188,7 @@ in
       modules-right = [
         "custom/charge-limit"
         "network#speed"
+        "custom/joi" # set up in assistant/default.nix
       ];
       modules-center = [ "mpris" ];
 
