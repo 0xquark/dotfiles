@@ -8,6 +8,12 @@
     alsa.enable = true;
     alsa.support32Bit = true;
     pulse.enable = true;
+    # Make headphones and other newly connected outputs the default right away
+    extraConfig.pipewire-pulse."switch-on-connect" = {
+      "pulse.cmd" = [
+        { cmd = "load-module"; args = "module-switch-on-connect"; }
+      ];
+    };
   };
   hardware.bluetooth.enable = true;
   services.printing.enable = true;
