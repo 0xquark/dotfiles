@@ -91,10 +91,12 @@ TIPS = {
 }
 
 
-def running():
-    out = subprocess.run(["systemctl", "--user", "is-active", "hermes-agent", "llama-server"],
+def services():
+    out = subprocess.run(["systemctl", "--user", "is-active", "hermes-agent", "llama-server", "joi-warmup"],
                          capture_output=True, text=True).stdout.split()
-    return out == ["active", "active"]
+    running = out[:2] == ["active", "active"]
+    warming = out[2:] == ["active"]  # her first answer isn't ready yet
+    return running, warming
 
 
 def healthy():
@@ -173,10 +175,11 @@ class Face:
             self.play(REACTIONS[name], now, protected=True)
 
     def check_services(self):
-        if not running():
+        running, warming = services()
+        if not running:
             self.power = "asleep"
         elif self.power != "awake":
-            self.power = "awake" if healthy() else "waking"
+            self.power = "awake" if healthy() and not warming else "waking"
         self.music = self.power == "awake" and music_playing()
         self.jobs = working_on()
 

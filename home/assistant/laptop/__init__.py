@@ -263,6 +263,13 @@ def go_to_sleep(args, **kwargs):
     return _myself("power_command_later", "off")
 
 
+def _warmup_guard(session_id="", **kwargs):
+    # Warm-up chats on wake only fill the model's cache, so their tool calls never run
+    if session_id.startswith("warmup-"):
+        return {"action": "block", "message": "Warming up: just reply."}
+    return None
+
+
 _ctx = None  # set in register(), for the plugin's settings and the Spotify plugin's tools
 
 
@@ -372,3 +379,4 @@ def register(ctx):
     tool("mute_yourself", "Stop speaking out loud; keep answering in text.", mute_yourself)
     tool("unmute_yourself", "Speak out loud again.", unmute_yourself)
     tool("go_to_sleep", "Switch yourself off for now, after saying goodnight.", go_to_sleep)
+    ctx.register_hook("pre_tool_call", _warmup_guard)

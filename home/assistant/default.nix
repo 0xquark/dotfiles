@@ -17,6 +17,8 @@ let
   awakeFile = "${config.xdg.stateHome}/joi/awake";
   # She types without speaking while this one exists
   mutedFile = "${config.xdg.stateHome}/joi/muted";
+  # Minutes with nothing asked of her before she falls asleep
+  sleepAfter = 20;
   speakerSocket = "$XDG_RUNTIME_DIR/joi/speaker.sock";
 
   # Joi's voice: Kokoro's Heart, warm and natural. Pinned to one revision of the model.
@@ -189,6 +191,64 @@ let
         off) off ;;
         toggle) if systemctl --user is-active -q hermes-agent; then off; else on; fi ;;
       esac
+    '';
+  };
+
+  # Two throwaway chats once she's up, so the model has her prompt cached and
+  # the first real question is as quick as the rest. The second one is what
+  # settles the cache for this model. The laptop plugin blocks their tools.
+  joiWarmup = pkgs.writeShellApplication {
+    name = "joi-warmup";
+    runtimeInputs = [ pkgs.curl ];
+    text = ''
+      for _ in $(seq 240); do
+        curl -sf http://127.0.0.1:${toString modelPort}/health >/dev/null &&
+          curl -sf http://127.0.0.1:${toString gatewayPort}/health >/dev/null && break
+        sleep 0.5
+      done
+      key=$(sed -n 's/^API_SERVER_KEY=//p' ${keyFile})
+      for n in 1 2; do
+        id="warmup-$(date +%s)-$n"
+        curl -sf -m 120 -o /dev/null \
+          -H "Authorization: Bearer $key" -H "Content-Type: application/json" \
+          -H "X-Hermes-Session-Id: $id" \
+          -d '{"model": "joi", "messages": [{"role": "user", "content": "What is 2 plus 2?"}]}' \
+          http://127.0.0.1:${toString gatewayPort}/p/joi/v1/chat/completions || true
+        # Keep them out of her history
+        ${config.services.hermes-agent.package}/bin/hermes -p joi sessions delete --yes "$id" >/dev/null || true
+      done
+    '';
+  };
+
+  # Runs every minute while she's awake. The model's task counter moving means
+  # someone used her: Joi, a terminal chat, or Darlene on a handoff.
+  joiAutosleep = pkgs.writeShellApplication {
+    name = "joi-autosleep";
+    runtimeInputs = [
+      pkgs.curl
+      pkgs.jq
+      pkgs.procps
+    ];
+    text = ''
+      used="$XDG_RUNTIME_DIR/joi/used"
+      mkdir -p "$(dirname "$used")"
+      slots=$(curl -sf -m 5 http://127.0.0.1:${toString modelPort}/slots) || exit 0
+      tasks=$(jq '[.[].id_task // 0] | max' <<<"$slots")
+      if jq -e 'any(.[]; .is_processing)' <<<"$slots" >/dev/null ||
+        [ "$tasks" != "$(cat "$used" 2>/dev/null)" ]; then
+        echo "$tasks" > "$used"
+        exit 0
+      fi
+      # Stay up for a job she handed off, or a terminal chat with one of them
+      if ls "${handoffs}"/*.running >/dev/null 2>&1 ||
+        pgrep -u "$(id -u)" -f '/bin/hermes( -p [a-z]+)?$' >/dev/null; then
+        exit 0
+      fi
+      # Time passes during suspend too, so after a long one she sleeps within a minute
+      last=$({ stat -c %Y "$used" "$XDG_RUNTIME_DIR/joi/activity" ${awakeFile} 2>/dev/null || true; } | sort -n | tail -1)
+      if [ $(( $(date +%s) - last )) -ge ${toString (sleepAfter * 60)} ]; then
+        exec ${joiPower}/bin/joi-power off
+      fi
     '';
   };
 
@@ -371,6 +431,46 @@ in
     Service = {
       ExecStart = "${speaker}/bin/joi-speaker";
       Restart = "on-failure";
+    };
+  };
+
+  # Each time the gateway starts, so her first answer comes quickly
+  systemd.user.services.joi-warmup = {
+    Unit = {
+      Description = "Get Joi's first answer ready";
+      After = [
+        "hermes-agent.service"
+        "llama-server.service"
+      ];
+      PartOf = [ "hermes-agent.service" ];
+      ConditionPathExists = awakeFile;
+    };
+    Install.WantedBy = [ "hermes-agent.service" ];
+    # Started counts as done right away, so waking her never waits on it
+    Service = {
+      Type = "exec";
+      ExecStart = "${joiWarmup}/bin/joi-warmup";
+    };
+  };
+
+  # She falls asleep after a while with nothing to do, to give the memory back
+  systemd.user.services.joi-autosleep = {
+    Unit.Description = "Put Joi to sleep when she's idle";
+    Service = {
+      Type = "oneshot";
+      ExecStart = "${joiAutosleep}/bin/joi-autosleep";
+    };
+  };
+  systemd.user.timers.joi-autosleep = {
+    Unit = {
+      Description = "Check whether Joi is idle";
+      PartOf = [ "hermes-agent.service" ];
+      ConditionPathExists = awakeFile;
+    };
+    Install.WantedBy = [ "hermes-agent.service" ];
+    Timer = {
+      OnCalendar = "minutely";
+      AccuracySec = "10s";
     };
   };
 
