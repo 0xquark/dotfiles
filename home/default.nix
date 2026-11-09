@@ -7,6 +7,7 @@
     ./bar.nix
     ./windows.nix
     ./zen-spaces.nix
+    ./dictate.nix
   ];
 
   home.username = "drquark";
