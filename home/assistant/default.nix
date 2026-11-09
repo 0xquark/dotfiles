@@ -304,10 +304,10 @@ in
     on-click = "${joiPower}/bin/joi-power toggle";
   };
   programs.waybar.style = lib.mkAfter ''
-    /* Exactly the pill's width, so the pill rises straight out of her */
+    /* Room at the screen edge for the note; the pill is placed to rise
+       from her middle, so change it in voice.nix too */
     #custom-joi {
-      min-width: 60px;
-      padding: 0;
+      padding: 0 10px;
       margin: 0;
       color: @base0E;
     }

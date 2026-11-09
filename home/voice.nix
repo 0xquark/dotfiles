@@ -198,6 +198,8 @@ let
     if JOI:
         # Reach down over the bar, so the pill can start inside it
         GtkLayerShell.set_anchor(win, GtkLayerShell.Edge.RIGHT, True)
+        # Centred on Joi's face, which ends 10px from the screen edge
+        GtkLayerShell.set_margin(win, GtkLayerShell.Edge.RIGHT, 14)
         GtkLayerShell.set_exclusive_zone(win, -1)
     else:
         GtkLayerShell.set_margin(win, GtkLayerShell.Edge.BOTTOM, 10)

@@ -113,7 +113,7 @@ class Bubble:
         GtkLayerShell.set_layer(self.win, GtkLayerShell.Layer.OVERLAY)
         GtkLayerShell.set_anchor(self.win, GtkLayerShell.Edge.BOTTOM, True)
         GtkLayerShell.set_anchor(self.win, GtkLayerShell.Edge.RIGHT, True)
-        GtkLayerShell.set_margin(self.win, GtkLayerShell.Edge.RIGHT, 6)
+        GtkLayerShell.set_margin(self.win, GtkLayerShell.Edge.RIGHT, 10)
         GtkLayerShell.set_margin(self.win, GtkLayerShell.Edge.BOTTOM, BOTTOM - RISE)
 
         css = Gtk.CssProvider()
