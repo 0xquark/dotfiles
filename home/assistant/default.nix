@@ -19,6 +19,8 @@ let
   mutedFile = "${config.xdg.stateHome}/joi/muted";
   # Minutes with nothing asked of her before she falls asleep
   sleepAfter = 20;
+  # Her add_note, read_notes and cross_off tools keep K's list here
+  notesFile = "${config.home.homeDirectory}/Documents/notes.md";
   speakerSocket = "$XDG_RUNTIME_DIR/joi/speaker.sock";
 
   # Joi's voice: Kokoro's Heart, warm and natural. Pinned to one revision of the model.
@@ -84,6 +86,42 @@ let
       fi
     '';
   };
+
+  # When a timer from her remind tool is up. It rings through Do Not Disturb,
+  # and she says it too if she's awake.
+  joiRing = pkgs.writeShellApplication {
+    name = "joi-ring";
+    runtimeInputs = [
+      pkgs.libnotify
+      pkgs.pipewire
+    ];
+    text = ''
+      notify-send --app-name=Joi --urgency=critical Joi "$1"
+      mkdir -p "$XDG_RUNTIME_DIR/joi"
+      echo alarm > "$XDG_RUNTIME_DIR/joi/event"
+      pw-play ${pkgs.sound-theme-freedesktop}/share/sounds/freedesktop/stereo/alarm-clock-elapsed.oga || true
+      if [ ! -e ${mutedFile} ]; then
+        printf "K, time's up. %s." "$1" | ${pkgs.socat}/bin/socat -u - "UNIX-CONNECT:${speakerSocket}" 2>/dev/null || true
+      fi
+    '';
+  };
+
+  # Lines she says by herself now and then: good morning, still up at 3am, this song again
+  moments = pkgs.writeShellScriptBin "joi-moments" ''
+    export PATH=${
+      lib.makeBinPath [
+        pkgs.procps
+        pkgs.playerctl
+        pkgs.systemd
+        pkgs.swaynotificationcenter
+      ]
+    }:$PATH
+    export JOI_STATE="${config.xdg.stateHome}/joi"
+    export JOI_BUBBLE="${bubble}/bin/joi-bubble"
+    export JOI_POWER="${joiPower}/bin/joi-power"
+    export JOI_HEALTH="${health}"
+    exec ${pkgs.python3}/bin/python3 ${./moments.py}
+  '';
 
   # Qwen3.5 4B: small, fast on the Arc GPU, and calls tools reliably
   model = pkgs.fetchurl {
@@ -153,6 +191,12 @@ let
         # mute_yourself, unmute_yourself and go_to_sleep
         mute_command = "${joiMute}/bin/joi-mute";
         power_command_later = "${joiSleepSoon}";
+        # remind, read_aloud, battery, lock_screen and the notes
+        ring_command = "${joiRing}/bin/joi-ring";
+        muted_file = mutedFile;
+        charge_command = "${import ../charge-limit.nix { inherit pkgs; }}";
+        lock_command = "${config.programs.swaylock.package}/bin/swaylock -f";
+        notes_file = notesFile;
       };
       # Naming each chat costs a second model call per question
       auxiliary.title_generation.enabled = false;
@@ -474,6 +518,21 @@ in
     };
   };
 
+  # Runs with the desktop, even while she sleeps: the morning one wakes her,
+  # and songs are counted all week
+  systemd.user.services.joi-moments = {
+    Unit = {
+      Description = "Joi's small moments";
+      PartOf = [ "graphical-session.target" ];
+      After = [ "graphical-session.target" ];
+    };
+    Install.WantedBy = [ "graphical-session.target" ];
+    Service = {
+      ExecStart = "${moments}/bin/joi-moments";
+      Restart = "on-failure";
+    };
+  };
+
   # The gateway also runs only while Joi is on. It exits with 1 when stopped,
   # so that counts as a clean stop; Restart=always still covers real crashes.
   systemd.user.services.hermes-agent = {
@@ -519,6 +578,10 @@ in
       pkgs.grim
       pkgs.wl-clipboard
       pkgs.sway
+      pkgs.swaynotificationcenter
+      pkgs.brightnessctl
+      pkgs.power-profiles-daemon
+      pkgs.gtk3 # gtk-launch, for open_app
     ];
   };
 

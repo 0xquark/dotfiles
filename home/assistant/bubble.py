@@ -2,7 +2,8 @@
 
 It shows typing dots while Joi thinks, then types her reply out with small
 pauses after commas and sentences, then fades. Click it to close it early and hush her.
-Usage: joi-bubble "what you said", or joi-bubble --type to type to her first
+Usage: joi-bubble "what you said", joi-bubble --type to type to her first, or
+joi-bubble --moment "what's happening" when she speaks up by herself
 """
 
 import json
@@ -33,6 +34,8 @@ ACTIVITY = os.path.join(STATE, "activity")  # read by the face in the bar
 PIDFILE = os.path.join(STATE, "bubble.pid")
 SPEAKER = os.path.join(STATE, "speaker.sock")
 MUTED = os.environ["JOI_MUTED_FILE"]  # she only types while this exists
+MOMENT = os.path.join(STATE, "moment")  # her tools stay off while she says a moment's line
+READ_NEXT = os.path.join(STATE, "read-next")  # text her read_aloud tool left to read out
 FRESH = 30 * 60  # seconds a conversation stays open between questions
 WIDTH = 48  # characters per line, at most
 BOTTOM = 38  # clears the pill rising out of the bar
@@ -102,6 +105,25 @@ def api_key():
     raise RuntimeError("no API_SERVER_KEY")
 
 
+def forget_moment():
+    try:
+        os.remove(MOMENT)
+    except OSError:
+        pass
+
+
+def take_reading():
+    # Only a fresh one: an old file is from a chat in the terminal
+    try:
+        fresh = time.time() - os.stat(READ_NEXT).st_mtime < 120
+        with open(READ_NEXT) as f:
+            text = f.read()
+        os.remove(READ_NEXT)
+        return text if fresh else ""
+    except OSError:
+        return ""
+
+
 def awake():
     for url in HEALTH:
         try:
@@ -111,7 +133,8 @@ def awake():
     return True
 
 
-def ask(said):
+def ask(said, moment=False):
+    # A moment goes into the same conversation, so K can answer her
     session_id = conversation()
     req = urllib.request.Request(
         URL,
@@ -119,8 +142,14 @@ def ask(said):
         {"Content-Type": "application/json", "Authorization": "Bearer " + api_key(),
          "X-Hermes-Session-Id": session_id},
     )
-    with urllib.request.urlopen(req, timeout=180) as r:
-        choice = json.load(r)["choices"][0]
+    if moment:
+        open(MOMENT, "w").close()
+    try:
+        with urllib.request.urlopen(req, timeout=180) as r:
+            choice = json.load(r)["choices"][0]
+    finally:
+        if moment:
+            forget_moment()
     touch_conversation(session_id)
     if choice.get("finish_reason") == "error":
         return "something broke in my head, try again? (hermes logs has the details)"
@@ -128,7 +157,8 @@ def ask(said):
 
 
 class Bubble:
-    def __init__(self, said):
+    def __init__(self, said, moment=False):
+        self.moment = moment
         self.win = Gtk.Window()
         self.win.set_app_paintable(True)
         self.win.set_visual(self.win.get_screen().get_rgba_visual())
@@ -166,7 +196,7 @@ class Bubble:
 
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=3)
         box.get_style_context().add_class("bubble")
-        self.said = self._label("said", said or "")
+        self.said = self._label("said", "" if moment else said or "")
         self.reply = self._label("reply", "")
         box.pack_start(self.said, False, False, 0)
         box.pack_start(self.reply, False, False, 0)
@@ -202,6 +232,8 @@ class Bubble:
             self.entry.grab_focus()
             set_activity("reading")
         else:
+            if moment:
+                self.said.hide()  # she starts it, so there's nothing K said
             self.start(said)
 
     def start(self, said):
@@ -254,12 +286,15 @@ class Bubble:
                 while not awake() and time.monotonic() < deadline:
                     time.sleep(1)
                 self.note = ""
-            text = ask(said) or "..."
+            text = ask(said, self.moment) or "..."
         except Exception:
+            if self.moment:
+                GLib.idle_add(Gtk.main_quit)  # a moment that fails just doesn't happen
+                return
             text = "can't reach my head right now, is Joi switched on?"
         # Typing dots for a moment at least, like someone reading first
         wait = max(0, 0.7 - (time.monotonic() - self.started))
-        GLib.timeout_add(int(wait * 1000), self.begin, text)
+        GLib.timeout_add(int(wait * 1000), self.begin, text, take_reading())
 
     def tick_dots(self):
         if self.text is not None:
@@ -269,13 +304,14 @@ class Bubble:
         self.reply.set_text(note + "•" * self.dots)
         return True
 
-    def begin(self, text):
+    def begin(self, text, reading=""):
         self.text = text
         set_activity("replying")
         # Size the bubble for the whole reply, so it keeps still while typing
         self.reply.set_width_chars(min(len(text), WIDTH))
         self.reply.set_text("")
-        say(text)
+        # What she was asked to read follows her reply, in the same breath
+        say(f"{text} {reading}" if reading else text)
         self.type_next()
         return False
 
@@ -321,7 +357,12 @@ def main():
     with open(PIDFILE, "w") as f:
         f.write(str(os.getpid()))
     signal.signal(signal.SIGTERM, lambda *_: os._exit(0))
-    Bubble(None if sys.argv[1:] == ["--type"] else " ".join(sys.argv[1:]))
+    args = sys.argv[1:]
+    if args[:1] == ["--moment"]:
+        Bubble(" ".join(args[1:]), moment=True)
+    else:
+        forget_moment()  # K is talking now, so her tools are back
+        Bubble(None if args == ["--type"] else " ".join(args))
     try:
         Gtk.main()
     finally:

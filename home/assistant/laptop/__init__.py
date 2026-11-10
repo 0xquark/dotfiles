@@ -1,5 +1,5 @@
-"""Named tools for the laptop: music, volume, links, reminders, and eyes on
-the screen and the clipboard.
+"""Named tools for the laptop: music, volume, links, timers, eyes on the
+screen and the clipboard, reading aloud, notes, and laptop settings.
 
 A small model calls one plainly named tool per job much more reliably than it
 writes shell commands.
@@ -8,9 +8,10 @@ writes shell commands.
 import base64
 import json
 import os
-import shlex
+import re
 import shutil
 import subprocess
+import time
 import urllib.request
 
 
@@ -106,7 +107,7 @@ def open_link(args, **kwargs):
 
 
 def remind(args, **kwargs):
-    text = args.get("text", "").strip() or "reminder"
+    text = args.get("text", "").strip() or "timer"
     try:
         minutes = float(args.get("minutes", 0))
     except (TypeError, ValueError):
@@ -114,11 +115,278 @@ def remind(args, **kwargs):
     if minutes <= 0:
         return _err("minutes must be more than 0")
     try:
-        # Show it, and make her face ring the alarm
-        ring = (f"{shutil.which('notify-send')} --app-name=Joi Joi {shlex.quote(text)}; "
-                f"echo alarm > {shlex.quote(os.path.join(STATE, 'event'))}")
-        code, out = _session(f"--on-active={round(minutes * 60)}s", shutil.which("sh"), "-c", ring)
-        return _ok(reminder=text, in_minutes=minutes) if code == 0 else _err(out)
+        # Named joi-timer-*, so timers() can find and cancel it. It rings even if she's asleep.
+        code, out = _session(f"--on-active={round(minutes * 60)}s",
+                             f"--unit=joi-timer-{int(time.time() * 1000)}", f"--description={text}",
+                             _ctx.get_config("ring_command"), text)
+        return _ok(timer=text, in_minutes=minutes) if code == 0 else _err(out)
+    except Exception as e:
+        return _err(str(e))
+
+
+def _timers():
+    _, out = _run("systemctl", "--user", "list-timers", "--all", "--output=json", "joi-timer-*")
+    found = []
+    for t in json.loads(out or "[]"):
+        _, text = _run("systemctl", "--user", "show", "-P", "Description", t["unit"])
+        left = max(0, t["next"] / 1e6 - time.time()) if t.get("next") else 0
+        found.append({"unit": t["unit"], "text": text, "minutes_left": round(left / 60, 1)})
+    return found
+
+
+def timers(args, **kwargs):
+    cancel = str(args.get("cancel", "")).strip().lower()
+    try:
+        found = _timers()
+        if not cancel:
+            return _ok(timers=found)
+        gone = [t for t in found if cancel in ("all", "everything") or cancel in t["text"].lower()]
+        if not gone and len(found) == 1:
+            gone = found  # "cancel the timer" when there's only one
+        if not gone:
+            return _err(f"no timer matches {cancel!r}")
+        for t in gone:
+            _run("systemctl", "--user", "stop", t["unit"])
+        return _ok(cancelled=[t["text"] for t in gone])
+    except Exception as e:
+        return _err(str(e))
+
+
+def _sway(*cmd):
+    # Run by Sway itself, so an app she opens belongs to the desktop and outlives the call
+    p = subprocess.run(["swaymsg", "exec", " ".join(cmd)], env=_desktop_env(),
+                       capture_output=True, text=True, timeout=10)
+    return p.returncode, (p.stdout or p.stderr).strip()
+
+
+def read_aloud(args, **kwargs):
+    if os.path.exists(_ctx.get_config("muted_file")):
+        return _err("you're muted, so you can't read it out; K can unmute you first")
+    sources = {"selection": ["--primary"], "clipboard": []}
+    first = str(args.get("from", "selection")).strip().lower()
+    order = [first] + [s for s in sources if s != first] if first in sources else list(sources)
+    env = _desktop_env()
+    try:
+        for source in order:
+            p = subprocess.run(["wl-paste", "--no-newline", "--type", "text", *sources[source]],
+                               env=env, capture_output=True, text=True, timeout=5)
+            text = p.stdout.strip() if p.returncode == 0 else ""
+            if text:
+                break
+        else:
+            return _err("nothing is selected or copied")
+        # The bubble reads it out after her reply
+        with open(os.path.join(STATE, "read-next"), "w") as f:
+            f.write(text[:5000])
+        return _ok(reading=text[:80] + ("…" if len(text) > 80 else ""), source=source,
+                   words=len(text.split()), cut=len(text) > 5000,
+                   note="It's read out right after your reply, so reply in a few words.")
+    except Exception as e:
+        return _err(str(e))
+
+
+def do_not_disturb(args, **kwargs):
+    turn = str(args.get("turn", "on")).strip().lower()
+    swaync = shutil.which("swaync-client")
+    try:
+        # A new request replaces any planned switch-off
+        _run("systemctl", "--user", "stop", "joi-dnd-off.timer")
+        if turn == "off":
+            code, out = _run(swaync, "-df")
+            return _ok(do_not_disturb="off") if code == 0 else _err(out)
+        code, out = _run(swaync, "-dn")
+        if code != 0:
+            return _err(out)
+        minutes = float(args.get("minutes") or 0)
+        if minutes > 0:
+            _session(f"--on-active={round(minutes * 60)}s", "--unit=joi-dnd-off", swaync, "-df")
+            return _ok(do_not_disturb="on", for_minutes=minutes)
+        return _ok(do_not_disturb="on", until="K turns it off")
+    except Exception as e:
+        return _err(str(e))
+
+
+def _read(path, default=""):
+    try:
+        with open(path) as f:
+            return f.read().strip()
+    except OSError:
+        return default
+
+
+def _duration(hours):
+    h, m = divmod(round(hours * 60), 60)
+    return f"{h}h {m}m" if h else f"{m}m"
+
+
+def battery(args, **kwargs):
+    want = str(args.get("charge", "")).strip().lower()
+    run = os.environ.get("XDG_RUNTIME_DIR", "/tmp")
+    try:
+        bat = next(os.path.join("/sys/class/power_supply", n)
+                   for n in sorted(os.listdir("/sys/class/power_supply")) if n.startswith("BAT"))
+        percent = int(_read(f"{bat}/capacity", "0"))
+        status = _read(f"{bat}/status").lower()
+        now, full = int(_read(f"{bat}/charge_now", "0")), int(_read(f"{bat}/charge_full", "0"))
+        current = int(_read(f"{bat}/current_now", "0"))
+        # The bar's LIM button keeps the last limit it set here; every boot starts at 80
+        limit = int(_read(os.path.join(run, "charge-limit"), "80"))
+        target = {"full": 100, "100": 100, "normal": 80, "limit": 80, "80": 80}.get(want)
+        if target and target != limit:
+            code, out = _session(_ctx.get_config("charge_command"), "toggle")
+            if code != 0:
+                return _err(out or "couldn't change the charge limit")
+            limit = target
+        info = {"percent": percent, "state": status, "charges_to": f"{limit}%"}
+        if current > 0 and status == "discharging":
+            info["time_left"] = _duration(now / current)
+        elif current > 0 and status == "charging":
+            info["time_to_limit"] = _duration(max(0, full * limit / 100 - now) / current)
+        return _ok(**info)
+    except Exception as e:
+        return _err(str(e))
+
+
+def screen_brightness(args, **kwargs):
+    change = str(args.get("change", "get")).strip().lower()
+    tool = [shutil.which("brightnessctl"), "--class=backlight"]
+    try:
+        if change in ("up", "down"):
+            _run(*tool, "set", "10%+" if change == "up" else "10%-")
+        elif change.rstrip("%").isdigit():
+            _run(*tool, "set", str(max(1, int(change.rstrip("%")))) + "%")
+        elif change != "get":
+            return _err(f"unknown change {change!r}")
+        # "intel_backlight,backlight,57600,30%,192000"
+        _, out = _run(*tool, "-m")
+        return _ok(brightness=out.split(",")[3] if out.count(",") >= 3 else out)
+    except Exception as e:
+        return _err(str(e))
+
+
+def power_mode(args, **kwargs):
+    mode = str(args.get("mode", "get")).strip().lower()
+    try:
+        if mode != "get":
+            code, out = _run("powerprofilesctl", "set", mode)
+            if code != 0:
+                return _err(out or f"couldn't switch to {mode}")
+        _, now = _run("powerprofilesctl", "get")
+        return _ok(power_mode=now)
+    except Exception as e:
+        return _err(str(e))
+
+
+def _notes():
+    path = _ctx.get_config("notes_file")
+    text = _read(path)
+    return path, text.splitlines() if text else ["# Notes", ""]
+
+
+def _save_notes(path, lines):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w") as f:
+        f.write("\n".join(lines) + "\n")
+
+
+def add_note(args, **kwargs):
+    text = " ".join(str(args.get("text", "")).split())
+    # She sometimes passes K's whole sentence: "note that I need…", "add eggs to my list"
+    text = re.sub(r"^(please )?(note( down)? that|note down|note|add|put)\s+", "", text, flags=re.I)
+    text = re.sub(r"\s+(to|on) (my|the) (to-?do )?(list|notes)$", "", text, flags=re.I)
+    if not text:
+        return _err("say what to note")
+    try:
+        path, lines = _notes()
+        lines.append(f"- [ ] {text} ({time.strftime('%b %-d')})")
+        _save_notes(path, lines)
+        return _ok(noted=text)
+    except Exception as e:
+        return _err(str(e))
+
+
+def read_notes(args, **kwargs):
+    try:
+        _, lines = _notes()
+        notes = [l[6:] for l in lines if l.startswith("- [ ] ")]
+        return _ok(notes=notes[-30:], total=len(notes))
+    except Exception as e:
+        return _err(str(e))
+
+
+def cross_off(args, **kwargs):
+    query = str(args.get("text", "")).strip().lower()
+    words = set(query.split())
+    try:
+        path, lines = _notes()
+        open_notes = [i for i, l in enumerate(lines) if l.startswith("- [ ] ")]
+
+        # "called the landlord" crosses off "call the landlord": the note sharing most words
+        def score(i):
+            note = lines[i][6:].lower()
+            return 2 * len(words) if query in note else len(words & set(note.split()))
+
+        best = max(open_notes, key=score, default=None)
+        if best is None or score(best) * 2 < len(words):
+            return _err(f"no note matches {query!r}")
+        lines[best] = "- [x] " + lines[best][6:]
+        _save_notes(path, lines)
+        return _ok(crossed_off=lines[best][6:])
+    except Exception as e:
+        return _err(str(e))
+
+
+def lock_screen(args, **kwargs):
+    code, out = _sway(_ctx.get_config("lock_command"))
+    return _ok(locked=True) if code == 0 else _err(out or "couldn't lock")
+
+
+def _apps():
+    home = os.path.expanduser("~")
+    folders = [f"{home}/.local/share/applications", f"/etc/profiles/per-user/{os.environ.get('USER', '')}/share/applications",
+               f"{home}/.nix-profile/share/applications", "/run/current-system/sw/share/applications",
+               f"{home}/.local/share/flatpak/exports/share/applications", "/var/lib/flatpak/exports/share/applications"]
+    apps = {}
+    for folder in folders:
+        try:
+            names = os.listdir(folder)
+        except OSError:
+            continue
+        for name in names:
+            if not name.endswith(".desktop") or name in apps:
+                continue
+            entry = {}
+            for line in _read(os.path.join(folder, name)).splitlines():
+                if line.startswith("[") and line != "[Desktop Entry]":
+                    break  # only the main section, before the actions
+                key, _, value = line.partition("=")
+                entry.setdefault(key.strip(), value.strip())
+            if entry.get("Type") == "Application" and "true" not in (entry.get("NoDisplay"), entry.get("Hidden")):
+                apps[name] = entry.get("Name", name)
+    return apps
+
+
+def open_app(args, **kwargs):
+    want = str(args.get("name", "")).strip().lower()
+    if not want:
+        return _err("say which app")
+    try:
+        apps = _apps()
+
+        def rank(item):
+            app_id, name = item[0].lower().removesuffix(".desktop"), item[1].lower()
+            if want in (name, app_id):
+                return 0
+            if name.startswith(want):
+                return 1
+            return 2 if want in name or want in app_id else 3
+
+        found = sorted(apps.items(), key=lambda item: (rank(item), len(item[1])))
+        if not found or rank(found[0]) == 3:
+            return _err(f"no app called {want!r}")
+        app_id, name = found[0]
+        code, out = _sway(shutil.which("gtk-launch"), app_id.removesuffix(".desktop"))
+        return _ok(opened=name) if code == 0 else _err(out or f"couldn't open {name}")
     except Exception as e:
         return _err(str(e))
 
@@ -263,10 +531,17 @@ def go_to_sleep(args, **kwargs):
     return _myself("power_command_later", "off")
 
 
-def _warmup_guard(session_id="", **kwargs):
+def _guard(session_id="", **kwargs):
     # Warm-up chats on wake only fill the model's cache, so their tool calls never run
     if session_id.startswith("warmup-"):
         return {"action": "block", "message": "Warming up: just reply."}
+    # The bubble marks a moment she starts herself; she only says her line then.
+    # A fresh mark only, in case a bubble was closed mid-way.
+    try:
+        if time.time() - os.stat(os.path.join(STATE, "moment")).st_mtime < 120:
+            return {"action": "block", "message": "This is a moment: just say your line."}
+    except OSError:
+        pass
     return None
 
 
@@ -361,8 +636,37 @@ def register(ctx):
          ["change"])
     tool("open_link", "Open a website in the browser.", open_link,
          {"url": {"type": "string"}}, ["url"])
-    tool("remind", "Show a reminder notification after some minutes.", remind,
-         {"minutes": {"type": "number"}, "text": {"type": "string"}}, ["minutes", "text"])
+    tool("remind", "Set a timer or a reminder. It rings and shows a notification when the time's up.",
+         remind, {"minutes": {"type": "number"},
+                  "text": {"type": "string", "description": "what it's for, like 'pasta' or 'call mum'"}},
+         ["minutes", "text"])
+    tool("timers", "List the timers and reminders, with the time left, or cancel one.", timers,
+         {"cancel": {"type": "string", "description": "optional: which one to cancel, or 'all'"}})
+    tool("read_aloud", "Read out loud the text K selected or copied, when K says 'read this' or "
+         "'read it to me'.", read_aloud,
+         {"from": {"type": "string", "enum": ["selection", "clipboard"]}})
+    tool("do_not_disturb", "Turn Do Not Disturb on or off, so notifications stay quiet.",
+         do_not_disturb, {"turn": {"type": "string", "enum": ["on", "off"]},
+                          "minutes": {"type": "number", "description": "optional: switch it off after this long"}},
+         ["turn"])
+    tool("battery", "Tell the battery level and time left, or change how far it charges.", battery,
+         {"charge": {"type": "string", "enum": ["full", "normal"],
+                     "description": "optional: 'full' charges to 100%, 'normal' stops at 80%"}})
+    tool("screen_brightness", "Change or read the screen brightness.", screen_brightness,
+         {"change": {"type": "string", "description": "'up', 'down', 'get', or a level like '40%'"}},
+         ["change"])
+    tool("power_mode", "Switch or read the power mode.", power_mode,
+         {"mode": {"type": "string", "enum": ["power-saver", "balanced", "performance", "get"]}},
+         ["mode"])
+    tool("add_note", "Write something down on K's notes and to-do list, like 'note that the "
+         "plumber called' or 'add milk to my list'.", add_note,
+         {"text": {"type": "string"}}, ["text"])
+    tool("read_notes", "Read K's notes and to-do list.", read_notes)
+    tool("cross_off", "Cross something off K's to-do list once it's done.", cross_off,
+         {"text": {"type": "string", "description": "the thing that's done, in K's words"}}, ["text"])
+    tool("lock_screen", "Lock the screen.", lock_screen)
+    tool("open_app", "Open an app on the laptop, like Spotify or Firefox.", open_app,
+         {"name": {"type": "string"}}, ["name"])
     question = {"question": {"type": "string",
                              "description": "what K wants to know, like 'what does this error mean'"}}
     tool("look_at_screen", "Look at the window K is looking at right now.",
@@ -379,4 +683,4 @@ def register(ctx):
     tool("mute_yourself", "Stop speaking out loud; keep answering in text.", mute_yourself)
     tool("unmute_yourself", "Speak out loud again.", unmute_yourself)
     tool("go_to_sleep", "Switch yourself off for now, after saying goodnight.", go_to_sleep)
-    ctx.register_hook("pre_tool_call", _warmup_guard)
+    ctx.register_hook("pre_tool_call", _guard)

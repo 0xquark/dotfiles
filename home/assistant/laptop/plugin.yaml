@@ -1,5 +1,5 @@
 name: laptop
 version: 1.0.0
-description: Spotify, music, volume, links, reminders, the screen and the clipboard, and a guard for warm-up chats
-provides_tools: [play_music, pause_music, resume_music, next_song, previous_song, now_playing, volume, open_link, remind, look_at_screen, look_at_clipboard, hand_off, check_handoffs, mute_yourself, unmute_yourself, go_to_sleep]
+description: Music, timers, the screen and clipboard, reading aloud, notes, laptop settings, and a guard for warm-ups and moments
+provides_tools: [play_music, pause_music, resume_music, next_song, previous_song, now_playing, volume, open_link, remind, look_at_screen, look_at_clipboard, hand_off, check_handoffs, mute_yourself, unmute_yourself, go_to_sleep, timers, read_aloud, do_not_disturb, battery, screen_brightness, power_mode, add_note, read_notes, cross_off, lock_screen, open_app]
 provides_hooks: [pre_tool_call]
