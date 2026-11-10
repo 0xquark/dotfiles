@@ -15,6 +15,6 @@ pkgs.writeShellScript "charge-limit" ''
   if [ "$now" -le 80 ]; then
     echo '{"text": "LIM 80%", "tooltip": "Battery stops at 80%. Click to charge to 100%.", "class": "limited"}'
   else
-    echo '{"text": "LIM OFF", "tooltip": "Charging to 100%. Click to stop at 80%.", "class": "full"}'
+    echo '{"text": "LIM", "tooltip": "Charging to 100%. Click to stop at 80%.", "class": "full"}'
   fi
 ''

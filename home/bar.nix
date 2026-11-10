@@ -129,7 +129,7 @@ in
       backlight.format = "BRT {percent}%";
       pulseaudio = {
         format = "VOL {volume}%";
-        format-muted = "VOL MUTE";
+        format-muted = "VOL"; # dimmed while muted
         on-click = "${popup} org.pulseaudio.pavucontrol pavucontrol";
       };
       # Click to connect or disconnect; right-click for the eduVPN window
@@ -141,20 +141,20 @@ in
         on-click = "${vpn} toggle";
         on-click-right = "${pkgs.eduvpn-client}/bin/eduvpn-gui";
       };
+      # Short states in the bar; hover for names. On and off show as colour.
       network = {
-        format-wifi = "NET {essid}";
+        format-wifi = "NET {signalStrength}%";
         format-ethernet = "NET WIRED";
-        format-disconnected = "NET OFF";
-        max-length = 12; # long names end in "…"; hover for the full one
+        format-disconnected = "NET";
         tooltip-format = "{ipaddr}";
         tooltip-format-wifi = "{essid} ({signalStrength}%)  {ipaddr}";
         on-click = termPopup "com.drquark.popup.network" "nmtui";
       };
       bluetooth = {
-        format = "BT {status}";
-        format-connected = "BT {device_alias}";
-        max-length = 12;
-        tooltip-format-connected = "{device_alias}";
+        format = "BT";
+        format-connected = "BT {num_connections}"; # e.g. BT 1
+        tooltip-format-connected = "{device_enumerate}";
+        tooltip-format-enumerate-connected = "{device_alias}";
         on-click = termPopup "com.drquark.popup.bluetooth" "bluetui";
       };
       power-profiles-daemon = {
@@ -240,12 +240,32 @@ in
         font-family: "JetBrainsMono Nerd Font";
         letter-spacing: 1px;
       }
+      /* Same padding Stylix gives the built-in labels, so the gaps match */
+      #tray,
+      #power-profiles-daemon,
+      #mpris,
+      #custom-vpn,
+      #custom-notifications,
+      #custom-charge-limit {
+        padding: 0 5px;
+      }
       /* Green while the battery is protected; full charge stands out, so it isn't left on by accident */
       #custom-charge-limit.limited {
         color: @base0B;
       }
       #custom-charge-limit.full {
         color: @base09;
+      }
+      /* Switches read like the VPN: green while on, dimmed while off */
+      #bluetooth.on,
+      #bluetooth.connected {
+        color: @base0B;
+      }
+      #bluetooth.off,
+      #bluetooth.disabled,
+      #network.disconnected,
+      #pulseaudio.muted {
+        color: @base03;
       }
       /* Green while the VPN is up, dimmed while it's off */
       #custom-vpn.on {
