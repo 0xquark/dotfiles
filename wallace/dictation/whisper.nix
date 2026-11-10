@@ -12,7 +12,12 @@ let
   # into bars that bounce with your voice, ripples while Whisper works (SIGUSR1),
   # then smiles again and closes itself (SIGUSR2).
   pillScript = pkgs.writeScript "dictate-pill" ''
-    #!${pkgs.python3.withPackages (ps: [ ps.pygobject3 ps.pycairo ])}/bin/python3
+    #!${
+      pkgs.python3.withPackages (ps: [
+        ps.pygobject3
+        ps.pycairo
+      ])
+    }/bin/python3
     import array
     import math
     import os
@@ -224,8 +229,14 @@ let
   pill = pkgs.stdenv.mkDerivation {
     name = "dictate-pill";
     dontUnpack = true;
-    nativeBuildInputs = [ pkgs.wrapGAppsHook3 pkgs.gobject-introspection ];
-    buildInputs = [ pkgs.gtk3 pkgs.gtk-layer-shell ];
+    nativeBuildInputs = [
+      pkgs.wrapGAppsHook3
+      pkgs.gobject-introspection
+    ];
+    buildInputs = [
+      pkgs.gtk3
+      pkgs.gtk-layer-shell
+    ];
     installPhase = "install -Dm755 ${pillScript} $out/bin/dictate-pill";
   };
 in

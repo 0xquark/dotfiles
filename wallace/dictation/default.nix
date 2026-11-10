@@ -1,8 +1,14 @@
-{ config, lib, pkgs, ... }:
+# Dictation with Whisper. Joi listens through the same script.
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
 let
-  hyper = "Mod4+Mod1+Control+Shift"; # what keyd sends while Caps is held
+  hyper = config.wallace.hyperKey;
 
-  inherit (import ./voice.nix { inherit config pkgs; }) model pill;
+  inherit (import ./whisper.nix { inherit config pkgs; }) model pill;
 
   # Hold to record, release to type out what was said. Runs offline on the Arc GPU.
   dictate = pkgs.writeShellApplication {

@@ -171,7 +171,7 @@ in
       modules-right = [
         "custom/charge-limit"
         "network#speed"
-        "custom/joi" # set up in assistant/default.nix
+        # Joi adds her face after these (wallace/joi/desktop.nix)
       ];
       modules-center = [ "mpris" ];
 

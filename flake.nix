@@ -31,7 +31,7 @@
       url = "github:sadjow/claude-code-nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    # Hermes, the agent behind the voice assistant. It keeps its own nixpkgs,
+    # Hermes, the agent behind Joi (wallace/joi). It keeps its own nixpkgs,
     # since its Python set is locked against it.
     hermes-agent.url = "github:NousResearch/hermes-agent";
     # Weekly index of every program in nixpkgs, for comma and "command not found"
@@ -65,7 +65,16 @@
             home-manager.useUserPackages = true;
             home-manager.backupFileExtension = "bak"; # don't fail on existing dotfiles
             home-manager.extraSpecialArgs = { inherit inputs; };
-            home-manager.users.drquark = import ./home;
+            home-manager.users.drquark =
+              { pkgs, ... }:
+              {
+                imports = [
+                  ./home # the desktop and apps
+                  ./wallace # Joi, the other characters, and dictation
+                ];
+                # Joi's battery tool switches the charge limit with the bar's script
+                wallace.joi.chargeLimitCommand = "${import ./home/charge-limit.nix { inherit pkgs; }}";
+              };
           }
         ];
       };

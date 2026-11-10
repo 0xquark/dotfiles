@@ -233,7 +233,10 @@ def battery(args, **kwargs):
         limit = int(_read(os.path.join(run, "charge-limit"), "80"))
         target = {"full": 100, "100": 100, "normal": 80, "limit": 80, "80": 80}.get(want)
         if target and target != limit:
-            code, out = _session(_ctx.get_config("charge_command"), "toggle")
+            command = _ctx.get_config("charge_command")
+            if not command:
+                return _err("this laptop has no way to change the charge limit set up")
+            code, out = _session(command, "toggle")
             if code != 0:
                 return _err(out or "couldn't change the charge limit")
             limit = target
