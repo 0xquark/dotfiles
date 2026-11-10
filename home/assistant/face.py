@@ -9,7 +9,7 @@ awake       (◕‿◕), blinking, with a wink, a glance or a smile now and then
 music       bobbing side to side with a note while something plays
 listening   (◕o◕) (◕O◕)
 thinking    (◔_◔)…
-replying    talking, then a happy ⋆(^‿^)⋆ when she's done
+replying    talking, in the mood of what she's saying, then a face to match
 looking     eyes scanning side to side while she looks at the screen or an image
 reading     (◕ω◕) while K types to her
 switched off: a yawn, then asleep
@@ -31,6 +31,7 @@ import urllib.request
 STATE = os.path.join(os.environ.get("XDG_RUNTIME_DIR", "/tmp"), "joi")
 ACTIVITY = os.path.join(STATE, "activity")
 EVENT = os.path.join(STATE, "event")  # one-off reactions, written by the tools
+MOOD = os.path.join(STATE, "mood")  # how her reply sounds, written by the bubble
 HEALTH = os.environ["JOI_HEALTH"].split()
 MUTED = os.environ["JOI_MUTED_FILE"]
 HANDOFFS = os.environ["JOI_HANDOFFS"]  # jobs she gave Claude or Darlene
@@ -56,6 +57,22 @@ STRETCH = ([("\\(◕‿◕)/", 1.4)], "happy")
 HAPPY = ([("⋆(^‿^)⋆", 1.6)], "happy")
 YAWN = ([(" (◕o◕) ", 0.4), (" (-o-) ", 0.8)], "asleep")
 BLINK = ([(" (-‿-) ", 0.14)], "awake")
+# Her moods while she replies: how she talks, and the face she ends on
+TALKS = {
+    "tease": [" (¬▿¬) ", " (¬‿¬) ", " (¬o¬) "],
+    "sweet": [" (˘▿˘) ", " (˘‿˘) ", " (˘o˘) "],
+    "laugh": [" (^▽^) ", " (^∀^) ", " (^o^) "],
+    "sorry": [" (◕▿◕;)", " (◕‿◕;)", " (◕o◕;)"],
+    "excited": [" (◕▽◕)!", " (◕‿◕)!", " (◕O◕)!"],
+}
+ENDINGS = {
+    "tease": ([(" (◕‿-) ", 1.4)], "happy"),
+    "sweet": ([(" (˘‿˘)♥", 1.8)], "happy"),
+    "laugh": ([(" (^▽^) ", 1.4)], "happy"),
+    "sorry": ([(" (◕_◕;)", 1.6)], "oops"),
+    "excited": ([("\\(◕▽◕)/", 1.4)], "happy"),
+    "curious": ([(" (◕‿◕)?", 1.6)], "happy"),
+}
 # Reactions to events
 REACTIONS = {
     "snap": ([(CAMERA + "(⊙▿⊙) ", 0.4), (" (^‿^)✓", 1.2)], "snap"),
@@ -143,6 +160,14 @@ def activity():
     return None
 
 
+def mood():
+    try:
+        with open(MOOD) as f:
+            return f.read().strip()
+    except OSError:
+        return "plain"
+
+
 def loop_frame(name, t):
     frames, times = LOOPS[name]
     t %= sum(times)
@@ -196,7 +221,7 @@ class Face:
             elif before in ("asleep", "waking") and state in ("awake", "music"):
                 self.play(STRETCH, now)
             elif before == "replying" and state in ("awake", "music"):
-                self.play(HAPPY, now)
+                self.play(ENDINGS.get(mood(), HAPPY), now)
             elif self.moment and not self.moment[3] and self.moment[1] != "asleep":
                 self.moment = None  # new activity cuts a quirk short
 
@@ -221,7 +246,7 @@ class Face:
             return " (◕‿◕) ", "awake"
         if state == "replying":
             # A new mouth shape every 120ms, picked at random so it looks like talking
-            return random.Random(int(now / 0.12)).choice(TALK), "replying"
+            return random.Random(int(now / 0.12)).choice(TALKS.get(mood(), TALK)), "replying"
         return loop_frame(state, now), state
 
 

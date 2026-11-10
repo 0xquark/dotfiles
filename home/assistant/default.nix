@@ -106,7 +106,8 @@ let
     '';
   };
 
-  # Lines she says by herself now and then: good morning, still up at 3am, this song again
+  # Lines she says by herself now and then, from what K is doing: good morning,
+  # back after hours away, this song again, skipping everything, a low battery
   moments = pkgs.writeShellScriptBin "joi-moments" ''
     export PATH=${
       lib.makeBinPath [
@@ -114,12 +115,15 @@ let
         pkgs.playerctl
         pkgs.systemd
         pkgs.swaynotificationcenter
+        pkgs.sway
       ]
     }:$PATH
     export JOI_STATE="${config.xdg.stateHome}/joi"
     export JOI_BUBBLE="${bubble}/bin/joi-bubble"
     export JOI_POWER="${joiPower}/bin/joi-power"
     export JOI_HEALTH="${health}"
+    export JOI_NOTES="${notesFile}"
+    export JOI_SESSIONS="${home}/profiles/joi/state.db"
     exec ${pkgs.python3}/bin/python3 ${./moments.py}
   '';
 
@@ -379,6 +383,9 @@ let
     export JOI_DARLENE_URL="http://127.0.0.1:${toString gatewayPort}/p/darlene/v1/chat/completions"
     export JOI_KEY_FILE="${keyFile}"
     export JOI_MUTED_FILE="${mutedFile}"
+    # She tells K what came back, if she's awake
+    export JOI_BUBBLE="${bubble}/bin/joi-bubble"
+    export JOI_HEALTH="${health}"
     exec ${pkgs.python3}/bin/python3 ${./handoff.py} "$@"
   '';
 

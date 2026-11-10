@@ -4,7 +4,8 @@ Usage: joi-handoff claude|darlene "the task"
 
 The answer goes to ~/.local/state/joi/handoffs/<time>-<who>.md. While it runs,
 <time>-<who>.running holds the task, so Joi and her face can see it. When it's
-done, K gets a notification, Joi's face reacts, and Joi says who's finished.
+done, K gets a notification, Joi's face reacts, and Joi tells K what came back
+in her own words. Asleep, she only says who's finished, if her voice is up.
 """
 
 import json
@@ -52,6 +53,38 @@ def darlene():
         return json.load(r)["choices"][0]["message"]["content"].strip()
 
 
+def awake():
+    for url in os.environ["JOI_HEALTH"].split():
+        try:
+            urllib.request.urlopen(url, timeout=2).close()
+        except Exception:
+            return False
+    return True
+
+
+def bubble_open():
+    try:
+        with open(os.path.join(RUN, "bubble.pid")) as f:
+            os.kill(int(f.read()), 0)
+        return True
+    except (OSError, ValueError):
+        return False
+
+
+def joi_tells(name, answer):
+    # Once K's done with any bubble that's up, for up to 3 minutes
+    deadline = time.time() + 180
+    while bubble_open() and time.time() < deadline:
+        time.sleep(3)
+    if bubble_open():
+        return False
+    note = (f"{name} just finished the job you handed off: {TASK!r}. Their answer begins: "
+            f"{answer[:700]!r}. Tell K what they found in one or two short sentences, "
+            f"and that the rest is in the notification.")
+    subprocess.Popen([os.environ["JOI_BUBBLE"], "--moment", f"[A moment, not a message from K: {note}]"])
+    return True
+
+
 def tell(name, answer, path):
     # The first paragraph, without markdown, fits a notification
     first = answer.split("\n\n", 1)[0].replace("**", "").replace("`", "").strip()
@@ -62,6 +95,8 @@ def tell(name, answer, path):
             f.write("handoff")
     except OSError:
         pass
+    if awake() and joi_tells(name, answer.replace("**", "").replace("`", "")):
+        return
     if not os.path.exists(os.environ["JOI_MUTED_FILE"]):
         try:
             with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as s:

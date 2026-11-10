@@ -37,6 +37,7 @@ SPEAKER = os.path.join(STATE, "speaker.sock")
 MUTED = os.environ["JOI_MUTED_FILE"]  # she only types while this exists
 MOMENT = os.path.join(STATE, "moment")  # her tools stay off while she says a moment's line
 READ_NEXT = os.path.join(STATE, "read-next")  # text her read_aloud tool left to read out
+MOOD = os.path.join(STATE, "mood")  # how her face in the bar talks and ends
 FRESH = 30 * 60  # seconds a conversation stays open between questions
 WIDTH = 48  # characters per line, at most
 BOTTOM = 38  # clears the pill rising out of the bar
@@ -90,6 +91,34 @@ def hush():
     try:
         with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as s:
             s.connect(SPEAKER)
+    except OSError:
+        pass
+
+
+# How she sounds, from her words; the first that matches wins
+MOODS = [
+    ("sorry", r"\b(sorry|oops|couldn't|can't|didn't work|not found|no luck|broke|failed|isn't on|nothing to|empty|"
+              r"no (\w+ ){0,2}(found|called))\b"),
+    ("laugh", r"\b(ha(ha)+|lol|hah)\b"),
+    ("sweet", r"\b(miss(ed)? you|love|glad|proud|sweet dreams|good ?night|good morning|morning, k|take care|aww+)\b"),
+    ("tease", r"\b(again|really|seriously|bold|nice try|of course|sure you|impressive|wow|night shift|"
+              r"picky|testing me|huh|basic|show-?off)\b"),
+    ("excited", r"!"),
+    ("curious", r"\?\s*$"),
+]
+
+
+def mood_of(text):
+    for mood, pattern in MOODS:
+        if re.search(pattern, text, re.I):
+            return mood
+    return "plain"
+
+
+def set_mood(mood):
+    try:
+        with open(MOOD, "w") as f:
+            f.write(mood)
     except OSError:
         pass
 
@@ -271,6 +300,7 @@ class Bubble:
 
     def start(self, said):
         self.started = time.monotonic()
+        set_mood("plain")
         GLib.timeout_add(350, self.tick_dots)
         set_activity("thinking")
         threading.Thread(target=self.fetch, args=(said,), daemon=True).start()
@@ -359,6 +389,7 @@ class Bubble:
     def more(self, sentence):
         first = self.text is None
         self.text = sentence if first else f"{self.text} {sentence}"
+        set_mood(mood_of(self.text))
         # The bubble grows a sentence at a time, so it keeps still while typing
         self.reply.set_width_chars(min(len(self.text), WIDTH))
         if first:
