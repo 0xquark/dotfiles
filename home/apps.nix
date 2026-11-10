@@ -174,6 +174,7 @@ in
     zoom-us
     obsidian
     element-desktop
+    eduvpn-client # CERN VPN; connections live in NetworkManager
     calcurse
     go
     gopls # Go language server, for Cursor and Neovim

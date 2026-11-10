@@ -26,6 +26,9 @@ let
   # Battery charge limit, in the bar; Joi's battery tool shares it
   chargeLimit = import ./charge-limit.nix { inherit pkgs; };
 
+  # CERN VPN on/off, in the bar
+  vpn = import ./vpn.nix { inherit pkgs; };
+
   # Window names, sizes, and which bar each one drops from
   popups = {
     "com.drquark.popup.network" = {
@@ -79,6 +82,7 @@ in
       modules-right = [
         "tray"
         "power-profiles-daemon"
+        "custom/vpn"
         "network"
         "bluetooth"
         "pulseaudio"
@@ -127,6 +131,15 @@ in
         format = "VOL {volume}%";
         format-muted = "VOL MUTE";
         on-click = "${popup} org.pulseaudio.pavucontrol pavucontrol";
+      };
+      # Click to connect or disconnect; right-click for the eduVPN window
+      "custom/vpn" = {
+        exec = "${vpn}";
+        return-type = "json";
+        interval = 5;
+        signal = 9;
+        on-click = "${vpn} toggle";
+        on-click-right = "${pkgs.eduvpn-client}/bin/eduvpn-gui";
       };
       network = {
         format-wifi = "NET {essid}";
@@ -233,6 +246,16 @@ in
       }
       #custom-charge-limit.full {
         color: @base09;
+      }
+      /* Green while the VPN is up, dimmed while it's off */
+      #custom-vpn.on {
+        color: @base0B;
+      }
+      #custom-vpn.off {
+        color: @base03;
+      }
+      #custom-vpn.busy {
+        color: @base0A;
       }
       /* Lights up while something is waiting; orange while Do Not Disturb is on */
       #custom-notifications.notification {

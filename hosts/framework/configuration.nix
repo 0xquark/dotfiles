@@ -23,6 +23,12 @@
   networking.networkmanager.enable = true;
   networking.networkmanager.wifi.macAddress = "permanent";
 
+  # eduVPN (CERN) hands out WireGuard or OpenVPN profiles; NetworkManager needs a plugin for OpenVPN
+  networking.networkmanager.plugins = [ pkgs.networkmanager-openvpn ];
+  # A full-tunnel WireGuard VPN routes replies by firewall mark, which the strict
+  # reverse-path check drops; loose still blocks spoofed addresses
+  networking.firewall.checkReversePath = "loose";
+
   # ── Language and time: English, French formats ────
   time.timeZone = "Europe/Paris";
   i18n.defaultLocale = "en_US.UTF-8";
