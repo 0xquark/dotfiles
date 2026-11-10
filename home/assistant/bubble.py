@@ -1,7 +1,8 @@
 """A chat bubble above Joi's corner of the bar.
 
 It shows typing dots while Joi thinks, then types her reply out with small
-pauses after commas and sentences, then fades. Click it to close it early and hush her.
+pauses after commas and sentences, then fades. The reply streams in, so she
+starts typing and speaking with her first sentence. Click it to close it early and hush her.
 Usage: joi-bubble "what you said", joi-bubble --type to type to her first, or
 joi-bubble --moment "what's happening" when she speaks up by herself
 """
@@ -41,6 +42,7 @@ WIDTH = 48  # characters per line, at most
 BOTTOM = 38  # clears the pill rising out of the bar
 RISE = 10  # pixels the bubble slides up as it appears
 
+SENTENCE_END = re.compile(r"(?<=[.!?])\s+|\n+")
 EMOJI = re.compile("[\U0001F000-\U0001FAFF☀-➿️‍]")
 
 
@@ -60,16 +62,36 @@ def set_activity(what):
         pass
 
 
-def say(text):
-    # Hand the reply to joi-speaker; an empty text hushes her
-    if text and os.path.exists(MUTED):
-        return
+class Voice:
+    """One reply's voice: each sentence goes to joi-speaker as soon as it's ready."""
+
+    def __init__(self):
+        self.sock = None
+        self.off = os.path.exists(MUTED)
+
+    def send(self, text):
+        if self.off or not text:
+            return
+        try:
+            if not self.sock:
+                self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+                self.sock.connect(SPEAKER)
+            self.sock.sendall((text + " ").encode())
+        except OSError:
+            self.off = True  # no voice running, the bubble is enough
+
+    def done(self):
+        if self.sock:
+            self.sock.close()
+
+
+def hush():
+    # A connection with nothing in it stops her
     try:
         with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as s:
             s.connect(SPEAKER)
-            s.sendall(text.encode())
     except OSError:
-        pass  # no voice running, the bubble is enough
+        pass
 
 
 def humanize(text):
@@ -134,11 +156,13 @@ def awake():
 
 
 def ask(said, moment=False):
+    """Her reply, in pieces as the model writes it."""
     # A moment goes into the same conversation, so K can answer her
     session_id = conversation()
     req = urllib.request.Request(
         URL,
-        json.dumps({"model": "joi", "messages": [{"role": "user", "content": said}]}).encode(),
+        json.dumps({"model": "joi", "stream": True,
+                    "messages": [{"role": "user", "content": said}]}).encode(),
         {"Content-Type": "application/json", "Authorization": "Bearer " + api_key(),
          "X-Hermes-Session-Id": session_id},
     )
@@ -146,14 +170,21 @@ def ask(said, moment=False):
         open(MOMENT, "w").close()
     try:
         with urllib.request.urlopen(req, timeout=180) as r:
-            choice = json.load(r)["choices"][0]
+            for line in r:
+                line = line.decode("utf-8", "replace").strip()
+                if not line.startswith("data: {"):
+                    continue  # keepalives, the end marker
+                # Tool progress events come through too; they have no choices
+                for choice in json.loads(line[6:]).get("choices") or []:
+                    if choice.get("finish_reason") == "error":
+                        raise RuntimeError("the model failed")
+                    piece = (choice.get("delta") or {}).get("content")
+                    if piece:
+                        yield piece
     finally:
         if moment:
             forget_moment()
     touch_conversation(session_id)
-    if choice.get("finish_reason") == "error":
-        return "something broke in my head, try again? (hermes logs has the details)"
-    return humanize(choice["message"]["content"] or "")
 
 
 class Bubble:
@@ -220,6 +251,8 @@ class Bubble:
 
         self.text = None
         self.shown = 0
+        self.finished = False  # the whole reply is in
+        self.waiting = False  # typing caught up and waits for the next sentence
         self.dots = 0
         self.note = ""
         self.appear = 0.0
@@ -279,6 +312,8 @@ class Bubble:
         return self.appear < 1.0
 
     def fetch(self, said):
+        voice = Voice()
+        got = False
         try:
             if not awake():
                 self.note = "waking up "
@@ -286,15 +321,32 @@ class Bubble:
                 while not awake() and time.monotonic() < deadline:
                     time.sleep(1)
                 self.note = ""
-            text = ask(said, self.moment) or "..."
+            # Whole sentences go out as they finish; the last one when the reply's done
+            rest = ""
+            for piece in ask(said, self.moment):
+                *done, rest = SENTENCE_END.split(rest + piece)
+                for sentence in filter(None, map(humanize, done)):
+                    got = True
+                    voice.send(sentence)
+                    GLib.idle_add(self.more, sentence)
+            for sentence in filter(None, [humanize(rest)]):
+                got = True
+                voice.send(sentence)
+                GLib.idle_add(self.more, sentence)
+            # What she was asked to read follows her reply, in the same breath
+            voice.send(take_reading())
         except Exception:
+            if not got and not self.moment:
+                got = True
+                GLib.idle_add(self.more, "can't reach my head right now, is Joi switched on?")
+        finally:
+            voice.done()
+        if not got:
             if self.moment:
-                GLib.idle_add(Gtk.main_quit)  # a moment that fails just doesn't happen
+                GLib.idle_add(Gtk.main_quit)  # a moment that comes to nothing just doesn't happen
                 return
-            text = "can't reach my head right now, is Joi switched on?"
-        # Typing dots for a moment at least, like someone reading first
-        wait = max(0, 0.7 - (time.monotonic() - self.started))
-        GLib.timeout_add(int(wait * 1000), self.begin, text, take_reading())
+            GLib.idle_add(self.more, "...")
+        GLib.idle_add(self.finish)
 
     def tick_dots(self):
         if self.text is not None:
@@ -304,29 +356,44 @@ class Bubble:
         self.reply.set_text(note + "•" * self.dots)
         return True
 
-    def begin(self, text, reading=""):
-        self.text = text
-        set_activity("replying")
-        # Size the bubble for the whole reply, so it keeps still while typing
-        self.reply.set_width_chars(min(len(text), WIDTH))
-        self.reply.set_text("")
-        # What she was asked to read follows her reply, in the same breath
-        say(f"{text} {reading}" if reading else text)
-        self.type_next()
+    def more(self, sentence):
+        first = self.text is None
+        self.text = sentence if first else f"{self.text} {sentence}"
+        # The bubble grows a sentence at a time, so it keeps still while typing
+        self.reply.set_width_chars(min(len(self.text), WIDTH))
+        if first:
+            set_activity("replying")
+            self.reply.set_text("")
+            # Typing dots for a moment at least, like someone reading first
+            wait = max(0, 0.7 - (time.monotonic() - self.started))
+            GLib.timeout_add(int(wait * 1000), self.type_next)
+        elif self.waiting:
+            self.waiting = False
+            self.type_next()
+        return False
+
+    def finish(self):
+        self.finished = True
+        if self.waiting:
+            self.waiting = False
+            self.type_next()
         return False
 
     def close(self, *_):
-        say("")
+        hush()
         Gtk.main_quit()
 
     def type_next(self):
-        self.shown += 1
-        self.reply.set_text(self.text[:self.shown])
         if self.shown >= len(self.text):
+            if not self.finished:
+                self.waiting = True  # more() picks it up again
+                return False
             set_activity("ready")
             # Long enough to read it, then fade
             GLib.timeout_add(int(2500 + 55 * len(self.text)), self.fade)
             return False
+        self.shown += 1
+        self.reply.set_text(self.text[:self.shown])
         ch = self.text[self.shown - 1]
         delay = random.uniform(18, 38)
         if ch == ",":

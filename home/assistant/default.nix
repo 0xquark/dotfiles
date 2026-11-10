@@ -450,6 +450,13 @@ in
         "q8_0"
         "--cache-type-v"
         "q8_0"
+        # This model's cache only resumes from saved points. Saving one wherever it's
+        # useful lets a new chat pick up right before its first message (1.8s
+        # instead of 3.7s); each point is ~50MB, so keep a few.
+        "--checkpoint-min-step"
+        "0"
+        "--ctx-checkpoints"
+        "8"
         # Answer straight away, without a thinking pass
         "--chat-template-kwargs"
         ''{"enable_thinking":false}''

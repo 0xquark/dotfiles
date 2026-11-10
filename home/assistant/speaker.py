@@ -1,13 +1,15 @@
 """Joi's voice: keeps Kokoro's Heart voice loaded and speaks what it's sent.
 
 It listens on $XDG_RUNTIME_DIR/joi/speaker.sock. A client sends text and
-closes its side. Playback starts with the first sentence while the rest is
-still being made. A new message cuts the current one off, and an empty one
-just hushes her.
+closes its side, all at once or a bit at a time while a reply is still being
+written. Each sentence is spoken as soon as it's complete. A new connection
+cuts the current one off, and an empty one just hushes her.
 Usage: joi-speaker CONFIG MODEL VOICE
 """
 
+import codecs
 import os
+import re
 import socket
 import subprocess
 import sys
@@ -38,29 +40,54 @@ def hush():
         player.kill()
 
 
-def speak(text, mine):
+def start_player(mine):
     global player
     with lock:
         if mine != turn:
-            return
+            return None
         player = subprocess.Popen(
             ["pw-play", "--raw", "--rate", str(RATE), "--channels", "1",
              "--format", "s16", "--media-role", "Communication", "-"],
             stdin=subprocess.PIPE,
         )
-        mine_player = player
+        return player
+
+
+def speak(sentence, mine, out):
+    # Returns False once a newer message has taken over
+    for _, _, audio in pipeline(sentence, voice=VOICE, split_pattern=None):
+        if mine != turn:
+            return False
+        if audio is None:
+            continue
+        pcm = (np.clip(audio.numpy(), -1, 1) * 32767).astype(np.int16)
+        out.stdin.write(pcm.tobytes())
+        out.stdin.flush()
+    return mine == turn
+
+
+def listen(conn, mine):
+    decoder = codecs.getincrementaldecoder("utf-8")("replace")
+    text = ""
+    out = None
     try:
-        for _, _, audio in pipeline(text, voice=VOICE, split_pattern=SENTENCES):
-            if mine != turn:
-                break
-            if audio is None:
-                continue
-            pcm = (np.clip(audio.numpy(), -1, 1) * 32767).astype(np.int16)
-            mine_player.stdin.write(pcm.tobytes())
-            mine_player.stdin.flush()
-        mine_player.stdin.close()
-        mine_player.wait()
-    except (BrokenPipeError, ValueError):
+        with conn:
+            while True:
+                chunk = conn.recv(4096)
+                text += decoder.decode(chunk, final=not chunk)
+                parts = re.split(SENTENCES, text)
+                # The last part may still be growing, until the client is done
+                ready, text = (parts, "") if not chunk else (parts[:-1], parts[-1])
+                for sentence in filter(str.strip, ready):
+                    out = out or start_player(mine)
+                    if not out or not speak(sentence.strip(), mine, out):
+                        return
+                if not chunk:
+                    break
+        if out:
+            out.stdin.close()
+            out.wait()
+    except (BrokenPipeError, ValueError, OSError):
         pass
 
 
@@ -77,16 +104,12 @@ def serve():
     server.listen()
     while True:
         conn, _ = server.accept()
-        with conn:
-            data = b""
-            while chunk := conn.recv(4096):
-                data += chunk
-        text = data.decode("utf-8", "replace").strip()
+        # Whoever connects now has the floor
         with lock:
             turn += 1
             hush()
-        if text:
-            threading.Thread(target=speak, args=(text, turn), daemon=True).start()
+            mine = turn
+        threading.Thread(target=listen, args=(conn, mine), daemon=True).start()
 
 
 serve()

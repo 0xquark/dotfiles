@@ -56,8 +56,13 @@ let
           fi
 
           kill -USR1 "$pill" 2>/dev/null || true
+          # Talking to Joi: the names Whisper would otherwise hear as "joy" or "Caitlin"
+          hints=()
+          if [ -n "''${2:-}" ]; then
+            hints=(--prompt "Joi, K, Darlene, Caitlyn, TARS, Spotify, wifi.")
+          fi
           # Join the lines and drop Whisper's sound tags like [BLANK_AUDIO] or (music)
-          text=$(whisper-cli -m ${model} -f "$rec/audio.wav" -nt -np -l en -t 8 2>/dev/null \
+          text=$(whisper-cli -m ${model} -f "$rec/audio.wav" -nt -np -l en -t 8 "''${hints[@]}" 2>/dev/null \
             | tr '\n' ' ' \
             | sed -E 's/\[[^]]*\]|\([^)]*\)//g; s/ +/ /g; s/^ //; s/ $//') || text=""
           # The pill smiles once more and closes itself
