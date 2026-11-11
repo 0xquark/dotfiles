@@ -18,7 +18,7 @@
     default = "Eclipse: Solar"; # Blade Runner
   };
 
-  # Extra themes, built next to the default (theme.nix). Switch with `nh os switch -s blues` (or v, joi),
+  # Extra themes, built next to the default (theme.nix). Switch with `nh os switch -s blues` (or v, joi, interstellar),
   # back with `nh os switch -S`. Each one also gets its own entry in the boot menu.
   config.specialisation.blues.configuration = {
     environment.etc.specialisation.text = "blues"; # so `nh os switch` stays on it
@@ -139,6 +139,47 @@
     home-manager.sharedModules = [
       {
         stylix.icons.package = lib.mkForce (pkgs.papirus-icon-theme.override { color = "magenta"; });
+      }
+    ];
+  };
+
+  # Endurance falling into the wormhole: black space, indigo haze, teal and rose light, white hull
+  config.specialisation.interstellar.configuration = {
+    environment.etc.specialisation.text = "interstellar";
+    theme.name = "interstellar";
+    theme.focusedBorder = "#4f8f9c";
+    theme.cursorTheme = "Stylix";
+
+    stylix = {
+      image = lib.mkForce ../../wallpapers/814174-interstellar-wallpaper.jpg;
+      cursor.name = lib.mkForce "Bibata-Modern-Ice"; # white, like the Endurance
+
+      base16Scheme = lib.mkForce {
+        scheme = "Interstellar";
+        author = "drquark";
+        base00 = "05050c"; # background: deep space
+        base01 = "0d0b1f"; # bar, panels: the indigo haze
+        base02 = "1d1940"; # selection: the violet glow behind the ship
+        base03 = "4a4570"; # inactive borders, comments
+        base04 = "a297a8"; # dim text: lavender grey of the wormhole edge
+        base05 = "dcd6e2"; # main text: the hull
+        base06 = "ebe7f0"; # light text
+        base07 = "f7f5fa"; # brightest text: starlight
+        base08 = "d0607a"; # errors: deep rose
+        base09 = "e09a8a"; # urgent: coral in the lensing
+        base0A = "e3c48f"; # warnings: warm starlight
+        base0B = "8fbf9f"; # success: muted green
+        base0C = "9ad3dd"; # pale ice cyan
+        base0D = "5fb3c4"; # main accent: wormhole teal
+        base0E = "d98a9e"; # rose: the wormhole's pink side
+        base0F = "6a5aa8"; # nebula violet
+      };
+    };
+
+    # Teal folder icons
+    home-manager.sharedModules = [
+      {
+        stylix.icons.package = lib.mkForce (pkgs.papirus-icon-theme.override { color = "teal"; });
       }
     ];
   };
