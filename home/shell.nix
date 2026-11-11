@@ -45,6 +45,27 @@
         GSSAPIAuthentication = true;
         GSSAPIDelegateCredentials = true; # forwards the ticket so EOS/AFS work on lxplus
       };
+
+      # ── WLCG ───────────────────────────────────
+      "wlcg-dev" = {
+        HostName = "188.185.68.185";
+        User = "root"; # OpenStack puts the key-pair on root
+        IdentityFile = "~/.ssh/id_ed25519_cern"; # uploaded to OpenStack as delorean-fm-wlcg
+      };
+
+      # XRootD collector VMs, reached through lxplus and logged in with the Kerberos ticket.
+      # Kerberos needs the DNS names here; an IP has no host principal.
+      "wlcg-lhcb wlcg-atlas wlcg-cms-pilot wlcg-alice wlcg-cms" = {
+        User = "root";
+        ProxyJump = "lxplus";
+        GSSAPIAuthentication = true;
+        GSSAPIDelegateCredentials = true;
+      };
+      "wlcg-lhcb".HostName = "test-lhcb-xrootd-collector.cern.ch"; # 188.184.89.52
+      "wlcg-atlas".HostName = "test-atlas-xrootd-collector.cern.ch"; # 188.185.64.139
+      "wlcg-cms-pilot".HostName = "test-cms-pilot-xrootd-collector.cern.ch"; # 188.185.69.185
+      "wlcg-alice".HostName = "test-alice-xrootd-collector.cern.ch"; # 188.185.115.7
+      "wlcg-cms".HostName = "test-cms-xrootd-collector.cern.ch"; # 188.185.113.229
     };
   };
 
