@@ -183,6 +183,17 @@ in
     python3
     uv # fast Python package and venv manager (pip replacement)
 
+    # Grafana MCP server for Claude Code, pointed at CERN MONIT.
+    # The token stays in a 600 file so it never lands in ~/.claude.json.
+    # Elasticsearch and InfluxDB are off by default upstream; MONIT needs them.
+    (writeShellScriptBin "mcp-grafana-monit" ''
+      export GRAFANA_URL=https://monit-grafana.cern.ch
+      export GRAFANA_SERVICE_ACCOUNT_TOKEN="$(cat "$HOME/.config/grafana/monit-token")"
+      exec ${mcp-grafana}/bin/mcp-grafana \
+        --enabled-tools search,datasource,dashboard,folder,navigation,annotations,rendering,elasticsearch,influxdb,prometheus,runpanelquery,examples \
+        "$@"
+    '')
+
     # KDE apps: files, images, PDFs, archives
     kdePackages.dolphin
     kdePackages.kio-extras # Dolphin: phones (MTP), network places, thumbnails
