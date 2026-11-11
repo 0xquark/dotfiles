@@ -29,6 +29,31 @@
   # reverse-path check drops; loose still blocks spoofed addresses
   networking.firewall.checkReversePath = "loose";
 
+  # CERN Kerberos: `kinit` gets a ticket for lxplus, EOS and SSO
+  security.krb5 = {
+    enable = true;
+    settings = {
+      libdefaults = {
+        default_realm = "CERN.CH";
+        forwardable = true; # lets lxplus get AFS/EOS tokens from your ticket
+        rdns = false;
+        udp_preference_limit = 0; # use TCP, which works better off-site
+        ticket_lifetime = "25h";
+        renew_lifetime = "120h";
+      };
+      realms."CERN.CH" = {
+        default_domain = "cern.ch";
+        kdc = "cerndc.cern.ch";
+        admin_server = "cerndc.cern.ch";
+        kpasswd_server = "cerndc.cern.ch";
+      };
+      domain_realm = {
+        "cern.ch" = "CERN.CH";
+        ".cern.ch" = "CERN.CH";
+      };
+    };
+  };
+
   # ── Language and time: English, French formats ────
   time.timeZone = "Europe/Paris";
   i18n.defaultLocale = "en_US.UTF-8";

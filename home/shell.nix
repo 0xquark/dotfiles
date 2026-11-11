@@ -9,6 +9,7 @@
   programs.ssh = {
     enable = true;
     enableDefaultConfig = false;
+    package = pkgs.openssh_gssapi; # stock openssh is built without Kerberos
 
     # Option names are the same as in ~/.ssh/config (see `man ssh_config`)
     settings = {
@@ -40,7 +41,9 @@
         # ssh lxplus
         HostName = "lxplus.cern.ch";
         User = "karanjot";
-        IdentityFile = "~/.ssh/id_ed25519_cern";
+        IdentityFile = "~/.ssh/id_ed25519_cern"; # fallback when there's no ticket
+        GSSAPIAuthentication = true;
+        GSSAPIDelegateCredentials = true; # forwards the ticket so EOS/AFS work on lxplus
       };
     };
   };
