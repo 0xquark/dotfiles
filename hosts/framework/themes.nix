@@ -18,52 +18,12 @@
     default = "Eclipse: Solar"; # Blade Runner
   };
 
-  # Extra themes, built next to the default (theme.nix). Switch with `nh os switch -s blues` (or v, joi, interstellar),
+  # Extra themes, built next to the default (theme.nix). Switch with `nh os switch -s v` (or joi, interstellar),
   # back with `nh os switch -S`. Each one also gets its own entry in the boot menu.
-  config.specialisation.blues.configuration = {
-    environment.etc.specialisation.text = "blues"; # so `nh os switch` stays on it
-    theme.name = "blues";
-    theme.focusedBorder = "#4e6ea8";
-    theme.cursorTheme = "Stylix";
-
-    stylix = {
-      image = lib.mkForce ../../wallpapers/blue_air.jpg;
-      cursor.name = lib.mkForce "Bibata-Modern-Ice"; # white instead of amber
-
-      # Night sky from the wallpaper: navy background, sky-blue accent, peach cloud edges
-      base16Scheme = lib.mkForce {
-        scheme = "Blues";
-        author = "drquark";
-        base00 = "0d1526"; # background: deep navy
-        base01 = "131d33"; # bar, panels
-        base02 = "1c2b47"; # selection
-        base03 = "3a5079"; # inactive borders, comments
-        base04 = "8395bb"; # dim text
-        base05 = "d5dbeb"; # main text
-        base06 = "e6e9f3"; # light text
-        base07 = "f4f1ec"; # brightest text: cloud white
-        base08 = "d9665e"; # errors: the plane's red stripe
-        base09 = "e3a07c"; # urgent: deep peach
-        base0A = "ebc8b0"; # warnings: lit cloud edge
-        base0B = "93b98f"; # success: muted green
-        base0C = "7cb2d4"; # pale sky
-        base0D = "638bd3"; # main accent: sky blue
-        base0E = "a596d0"; # lavender
-        base0F = "4c72b1"; # deep blue
-      };
-    };
-
-    # Blue folder icons instead of orange
-    home-manager.sharedModules = [
-      {
-        stylix.icons.package = lib.mkForce (pkgs.papirus-icon-theme.override { color = "blue"; });
-      }
-    ];
-  };
 
   # Edgerunners on the moon: black space, David's yellow jacket, Lucy's pastel hair
   config.specialisation.v.configuration = {
-    environment.etc.specialisation.text = "v";
+    environment.etc.specialisation.text = "v"; # so `nh os switch` stays on it
     theme.name = "v";
     theme.focusedBorder = "#bdb524";
     theme.cursorTheme = "Stylix";
@@ -143,43 +103,43 @@
     ];
   };
 
-  # Endurance falling into the wormhole: black space, indigo haze, teal and rose light, white hull
+  # Endurance inside the wormhole: rose light, plum shadows, white hull, a touch of blue
   config.specialisation.interstellar.configuration = {
     environment.etc.specialisation.text = "interstellar";
     theme.name = "interstellar";
-    theme.focusedBorder = "#4f8f9c";
+    theme.focusedBorder = "#a85a6b";
     theme.cursorTheme = "Stylix";
 
     stylix = {
-      image = lib.mkForce ../../wallpapers/814174-interstellar-wallpaper.jpg;
+      image = lib.mkForce ../../wallpapers/Interstellar_1.jpg;
       cursor.name = lib.mkForce "Bibata-Modern-Ice"; # white, like the Endurance
 
       base16Scheme = lib.mkForce {
         scheme = "Interstellar";
         author = "drquark";
-        base00 = "05050c"; # background: deep space
-        base01 = "0d0b1f"; # bar, panels: the indigo haze
-        base02 = "1d1940"; # selection: the violet glow behind the ship
-        base03 = "4a4570"; # inactive borders, comments
-        base04 = "a297a8"; # dim text: lavender grey of the wormhole edge
-        base05 = "dcd6e2"; # main text: the hull
-        base06 = "ebe7f0"; # light text
-        base07 = "f7f5fa"; # brightest text: starlight
-        base08 = "d0607a"; # errors: deep rose
-        base09 = "e09a8a"; # urgent: coral in the lensing
-        base0A = "e3c48f"; # warnings: warm starlight
-        base0B = "8fbf9f"; # success: muted green
-        base0C = "9ad3dd"; # pale ice cyan
-        base0D = "5fb3c4"; # main accent: wormhole teal
-        base0E = "d98a9e"; # rose: the wormhole's pink side
-        base0F = "6a5aa8"; # nebula violet
+        base00 = "120a16"; # background: plum shadow at the edge of the wormhole
+        base01 = "1a0f1f"; # bar, panels
+        base02 = "2e1a33"; # selection
+        base03 = "5c4462"; # inactive borders, comments: dusky mauve
+        base04 = "a998a9"; # dim text: lavender haze
+        base05 = "e3dde1"; # main text: the hull
+        base06 = "ede8eb"; # light text
+        base07 = "f8f5f7"; # brightest text: light through the ring
+        base08 = "c94a5e"; # errors: deep crimson streaks
+        base09 = "e08a7a"; # urgent: coral
+        base0A = "e6c38f"; # warnings: warm starlight
+        base0B = "93bfa0"; # success: muted green
+        base0C = "7fb6d0"; # blue: the cool side of the wormhole
+        base0D = "d47689"; # main accent: wormhole rose
+        base0E = "a58fd0"; # lavender
+        base0F = "8c4a63"; # deep wine
       };
     };
 
-    # Teal folder icons
+    # Pink folder icons
     home-manager.sharedModules = [
       {
-        stylix.icons.package = lib.mkForce (pkgs.papirus-icon-theme.override { color = "teal"; });
+        stylix.icons.package = lib.mkForce (pkgs.papirus-icon-theme.override { color = "pink"; });
       }
     ];
   };
