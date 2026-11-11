@@ -54,6 +54,9 @@
     };
   };
 
+  # CERN services (CRIC, MONIT, ...) use certificates from CERN's own root CA, which isn't in the default bundle
+  security.pki.certificateFiles = [ ./certs/cern-root-ca-2.crt ];
+
   # ── Language and time: English, French formats ────
   time.timeZone = "Europe/Paris";
   i18n.defaultLocale = "en_US.UTF-8";
