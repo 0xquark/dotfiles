@@ -39,17 +39,42 @@
       url = "github:nix-community/nix-index-database";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    # Lazarus, the throwaway VM for HTB and untrusted code
+    microvm = {
+      url = "github:microvm-nix/microvm.nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
     {
+      self,
       nixpkgs,
       nixos-hardware,
       home-manager,
       stylix,
+      microvm,
       ...
     }@inputs:
     {
+      # Lazarus: a throwaway VM that reads the host's /nix/store, so it has the
+      # basement tools without a download. Start it with `laz`.
+      nixosConfigurations.lazarus = nixpkgs.lib.nixosSystem {
+        system = "x86_64-linux";
+        specialArgs = { inherit inputs; };
+        modules = [
+          microvm.nixosModules.microvm
+          ./hosts/lazarus/configuration.nix
+        ];
+      };
+      # The same VM with a disk, for `laz -p 3d`
+      nixosConfigurations.lazarus-kept = self.nixosConfigurations.lazarus.extendModules {
+        modules = [ ./hosts/lazarus/kept.nix ];
+      };
+      packages.x86_64-linux.lazarus = self.nixosConfigurations.lazarus.config.microvm.declaredRunner;
+      packages.x86_64-linux.lazarus-kept =
+        self.nixosConfigurations.lazarus-kept.config.microvm.declaredRunner;
+
       # Named after your hostname, so `nixos-rebuild --flake ~/nixos` finds it
       nixosConfigurations.delorean = nixpkgs.lib.nixosSystem {
         specialArgs = { inherit inputs; }; # lets any module use inputs.*

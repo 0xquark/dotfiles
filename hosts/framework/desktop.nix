@@ -44,6 +44,8 @@ in
 
   # Electron and Chromium apps (Cursor, Discord, Helium) run natively on Wayland: sharp, not blurry
   environment.sessionVariables.NIXOS_OZONE_WL = "1";
+  # Java apps (Burp, Ghidra) show blank grey windows on sway without this
+  environment.sessionVariables._JAVA_AWT_WM_NONREPARENTING = "1";
 
   # ── Desktop services ──────────────────────────────
   # Power profiles for Waybar's button; upower for battery info

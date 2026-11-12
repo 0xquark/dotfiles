@@ -4,9 +4,11 @@
     ./keys.nix
     ./apps.nix
     ./shell.nix
+    ./terminal.nix
     ./bar.nix
     ./windows.nix
     ./zen-spaces.nix
+    ./basement.nix
   ];
 
   home.username = "drquark";

@@ -82,6 +82,7 @@ in
       modules-right = [
         "tray"
         "power-profiles-daemon"
+        "custom/lazarus" # set in basement.nix; shown only while the VM runs
         "custom/vpn"
         "network"
         "bluetooth"
