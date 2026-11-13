@@ -23,6 +23,47 @@ let
       ${pkgs.ghostty}/bin/ghostty --class=${noteId} -e ${pkgs.micro}/bin/micro "${noteFile}" &
     fi
   '';
+
+  # The dimmest the brightness keys go, in percent. Some panels turn the
+  # backlight fully off near 0, so raise this if the screen goes black.
+  dimmest = "0.1";
+
+  # Brightness keys: steps of 5%, then 1% steps from 5% down to 1%.
+  # Below 1% each press halves (or doubles) the raw backlight level, down
+  # to `dimmest`. SwayOSD only does whole percents, so brightnessctl sets
+  # those levels and SwayOSD just shows the pop-up.
+  brightness = pkgs.writeShellScript "brightness" ''
+    bctl=${pkgs.brightnessctl}/bin/brightnessctl
+    IFS=, read -r _ _ cur _ max < <($bctl -m -c backlight)
+    one=$(( max / 100 ))
+    floor=$(${pkgs.gawk}/bin/awk -v m="$max" 'BEGIN { f = int(m * ${dimmest} / 100); print (f < 1 ? 1 : f) }')
+    pct=$(( cur * 100 / max ))
+
+    fine() {
+      $bctl -q -c backlight set "$1"
+      swayosd-client --custom-icon display-brightness-symbolic \
+        --custom-progress "$(${pkgs.gawk}/bin/awk -v v="$1" -v m="$max" 'BEGIN { print v / m }')" \
+        --custom-progress-text "$(${pkgs.gawk}/bin/awk -v v="$1" -v m="$max" 'BEGIN { printf "%.2g%%", v * 100 / m }')"
+    }
+
+    if [ "$1" = up ]; then
+      if [ "$cur" -lt "$one" ]; then
+        new=$(( cur * 2 )); [ "$new" -gt "$one" ] && new=$one
+        fine "$new"
+      else
+        step=+5; [ "$pct" -lt 5 ] && step=+1
+        swayosd-client --brightness "$step" --min-brightness 1
+      fi
+    else
+      if [ "$cur" -le "$one" ]; then
+        new=$(( cur / 2 )); [ "$new" -lt "$floor" ] && new=$floor
+        fine "$new"
+      else
+        step=-5; [ "$pct" -le 5 ] && step=-1
+        swayosd-client --brightness "$step" --min-brightness 1
+      fi
+    fi
+  '';
 in
 {
   # ── Launcher: Vicinae ────────
@@ -142,8 +183,8 @@ in
       "XF86AudioRaiseVolume" = "exec swayosd-client --output-volume +5 --max-volume 100";
       "XF86AudioLowerVolume" = "exec swayosd-client --output-volume -5";
       "XF86AudioMute" = "exec swayosd-client --output-volume mute-toggle";
-      "XF86MonBrightnessUp" = "exec swayosd-client --brightness +5";
-      "XF86MonBrightnessDown" = "exec swayosd-client --brightness -5";
+      "XF86MonBrightnessUp" = "exec ${brightness} up";
+      "XF86MonBrightnessDown" = "exec ${brightness} down";
       "--release Caps_Lock" = "exec swayosd-client --caps-lock"; # after the light has changed
 
       # Media: play/pause, next, previous (F4–F6)
