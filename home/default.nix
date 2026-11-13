@@ -9,6 +9,7 @@
     ./windows.nix
     ./zen-spaces.nix
     ./basement.nix
+    ./claude-cloak.nix
   ];
 
   home.username = "drquark";
