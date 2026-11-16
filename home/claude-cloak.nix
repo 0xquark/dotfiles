@@ -23,6 +23,9 @@ let
     theme = "custom:cloak";
     # Screen-reader mode draws flat text: no logo, no input box, and "$" as the prompt
     axScreenReader = true;
+    # The classic renderer prints into the normal screen, so the terminal's scrollback works.
+    # Fullscreen switches to the alternate screen, and screen-reader mode has no scrolling there.
+    tui = "default";
     prefersReducedMotion = true;
     spinnerTipsEnabled = false;
     spinnerVerbs = {
@@ -59,8 +62,9 @@ in
   home.packages = [ cloak ];
   home.shellAliases.claude = "cloak run";
 
-  # Grey in place of Claude's orange and the diff colours. Text and the other
-  # colours come from the terminal palette (Stylix).
+  # The ANSI base takes its colours from the terminal palette (Stylix), so status
+  # colours look like any other shell tool. The overrides remove Claude's orange
+  # and the shaded blocks behind messages.
   home.file.".claude/themes/cloak.json".text = builtins.toJSON {
     name = "Cloak";
     base = "dark-ansi";
@@ -71,28 +75,14 @@ in
       briefLabelClaude = grey;
       fastMode = grey;
       fastModeShimmer = grey;
-      autoAccept = grey;
-      autoAcceptShimmer = grey;
-      skill = grey;
-      bashBorder = grey;
-      permission = grey;
-      permissionShimmer = grey;
-      planMode = grey;
-      ide = grey;
-      suggestion = grey;
-      remember = grey;
-      merged = grey;
-      effortUltra = grey;
-      claudeBlue_FOR_SYSTEM_SPINNER = grey;
-      claudeBlueShimmer_FOR_SYSTEM_SPINNER = grey;
-      promptBorder = "ansi:blackBright";
-      promptBorderShimmer = "ansi:blackBright";
-      diffAdded = "ansi:blackBright";
-      diffRemoved = "ansi:blackBright";
-      diffAddedDimmed = "ansi:blackBright";
-      diffRemovedDimmed = "ansi:blackBright";
-      diffAddedWord = grey;
-      diffRemovedWord = grey;
+      orange_FOR_SUBAGENTS_ONLY = grey;
+      # Diff colours are line backgrounds. Plain lines and red/green on the changed words only.
+      diffAdded = "ansi:black";
+      diffRemoved = "ansi:black";
+      diffAddedDimmed = "ansi:black";
+      diffRemovedDimmed = "ansi:black";
+      diffAddedWord = "ansi:green";
+      diffRemovedWord = "ansi:red";
       userMessageBackground = "ansi:black";
       userMessageBackgroundHover = "ansi:black";
       bashMessageBackgroundColor = "ansi:black";
