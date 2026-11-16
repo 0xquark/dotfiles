@@ -1,4 +1,4 @@
-{ ... }:
+{ pkgs, ... }:
 
 {
   # Layout on the login screen and text consoles (Sway sets its own in sway.nix)
@@ -32,7 +32,42 @@
         [hyper:C-A-M-S]
       '';
     };
+
+    # Logi POP Mouse: the middle button goes back, like a side button.
+    # keyd only takes over mice listed by id (find it with: keyd monitor).
+    keyboards.popmouse = {
+      ids = [ "m:046d:b030" ];
+      settings.main.middlemouse = "mouse1";
+    };
   };
+
+  # Logi POP Mouse: the Emoji button behind the wheel closes the tab (Alt+W).
+  # The mouse can only remap it to a click by itself, so logid takes it over.
+  # Button ids come from: solaar show "Logi POP Mouse"
+  services.logiops =
+    let
+      libconfig = (pkgs.formats.libconfig { }).lib;
+    in
+    {
+      enable = true;
+      config.devices = [
+        {
+          name = "Logi POP Mouse";
+          buttons = [
+            {
+              cid = 264; # 0x108, Emoji
+              action = {
+                type = "Keypress";
+                keys = libconfig.mkArray [
+                  "KEY_LEFTALT"
+                  "KEY_W"
+                ];
+              };
+            }
+          ];
+        }
+      ];
+    };
 
   # keyd appears as a new keyboard; this keeps "ignore touchpad while typing" working
   environment.etc."libinput/local-overrides.quirks".text = ''
